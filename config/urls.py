@@ -23,4 +23,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', RootView.as_view(), name='api-root'),
     path('api/v1/accounts/', include('accounts.api.v1.urls')),
+    path('api/v1/forms/', include('forms.api.v1.urls')),
 ]
