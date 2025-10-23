@@ -1,7 +1,3 @@
-from random import choice, choices
-from tabnanny import verbose
-from tkinter import CASCADE
-import django
 from django.db import models
 from django.contrib.auth import get_user_model
 import uuid

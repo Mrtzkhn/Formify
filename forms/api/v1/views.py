@@ -1,7 +1,6 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 
 from forms.models import Field, Form
@@ -18,6 +17,10 @@ class FieldViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.field_service = FieldService()
+    
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
@@ -30,7 +33,26 @@ class FieldViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return fields belonging to the authenticated user's forms."""
-        return Field.objects.filter(form__created_by=self.request.user).order_by('form', 'order_num')
+        return self.field_service.get_user_fields(self.request.user)
+    
+    def get_object(self):
+        """Get a single field object."""
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        
+        # Use the repository to get the field
+        from forms.repositories.field_repository import FieldRepository
+        field_repo = FieldRepository()
+        
+        try:
+            field = field_repo.get_by_id(lookup_value)
+            if not field or field.form.created_by != self.request.user:
+                from django.http import Http404
+                raise Http404("Field not found")
+            return field
+        except Field.DoesNotExist:
+            from django.http import Http404
+            raise Http404("Field not found")
     
     def perform_create(self, serializer):
         """Create a new field using the service layer."""
@@ -43,7 +65,7 @@ class FieldViewSet(viewsets.ModelViewSet):
             'order_num': serializer.validated_data.get('order_num', 0)
         }
         
-        field = FieldService.create_field(
+        field = self.field_service.create_field(
             user=self.request.user,
             form_id=str(form_id),
             field_data=field_data
@@ -66,7 +88,7 @@ class FieldViewSet(viewsets.ModelViewSet):
         # Remove None values
         field_data = {k: v for k, v in field_data.items() if v is not None}
         
-        field = FieldService.update_field(
+        field = self.field_service.update_field(
             user=self.request.user,
             field_id=str(field_id),
             field_data=field_data
@@ -77,7 +99,7 @@ class FieldViewSet(viewsets.ModelViewSet):
     
     def perform_destroy(self, instance):
         """Delete a field using the service layer."""
-        FieldService.delete_field(
+        self.field_service.delete_field(
             user=self.request.user,
             field_id=str(instance.id)
         )
@@ -98,7 +120,7 @@ class FieldViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            fields = FieldService.get_form_fields(
+            fields = self.field_service.get_form_fields(
                 user=request.user,
                 form_id=form_id
             )
@@ -127,7 +149,7 @@ class FieldViewSet(viewsets.ModelViewSet):
         
         if serializer.is_valid():
             try:
-                updated_field = FieldService.reorder_field(
+                updated_field = self.field_service.reorder_field(
                     user=request.user,
                     field_id=str(field.id),
                     new_order=serializer.validated_data['new_order']
@@ -149,7 +171,7 @@ class FieldViewSet(viewsets.ModelViewSet):
         """
         Get available field types.
         """
-        field_types = FieldService.get_field_types()
+        field_types = self.field_service.get_field_types()
         return Response(field_types, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])

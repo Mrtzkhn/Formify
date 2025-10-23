@@ -43,7 +43,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_create_field_success(self):
         """Test successful field creation via API."""
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         data = {
             'form': str(self.form.id),
             'label': 'Test Field',
@@ -65,7 +65,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_create_field_permission_denied(self):
         """Test field creation with permission denied."""
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         data = {
             'form': str(self.other_form.id),  # Form owned by other user
             'label': 'Test Field',
@@ -82,7 +82,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_create_select_field_with_options(self):
         """Test creating a select field with valid options."""
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         data = {
             'form': str(self.form.id),
             'label': 'Country',
@@ -106,7 +106,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_create_field_invalid_options(self):
         """Test field creation with invalid options."""
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         data = {
             'form': str(self.form.id),
             'label': 'Country',
@@ -145,7 +145,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -160,7 +160,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = f'/api/v1/fields/{field.id}/'
+        url = f'/api/v1/forms/fields/{field.id}/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -175,7 +175,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = f'/api/v1/fields/{field.id}/'
+        url = f'/api/v1/forms/fields/{field.id}/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -190,7 +190,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = f'/api/v1/fields/{field.id}/'
+        url = f'/api/v1/forms/fields/{field.id}/'
         data = {
             'label': 'Updated Label',
             'is_required': True
@@ -212,7 +212,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = f'/api/v1/fields/{field.id}/'
+        url = f'/api/v1/forms/fields/{field.id}/'
         response = self.client.delete(url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -242,7 +242,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = '/api/v1/fields/by_form/'
+        url = '/api/v1/forms/fields/by_form/'
         response = self.client.get(url, {'form_id': str(self.form.id)})
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -250,7 +250,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_by_form_action_missing_form_id(self):
         """Test by_form action without form_id parameter."""
-        url = '/api/v1/fields/by_form/'
+        url = '/api/v1/forms/fields/by_form/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -277,7 +277,7 @@ class FieldAPITestCase(APITestCase):
             order_num=3
         )
         
-        url = f'/api/v1/fields/{field1.id}/reorder/'
+        url = f'/api/v1/forms/fields/{field1.id}/reorder/'
         data = {'new_order': 3}
         
         response = self.client.post(url, data, format='json')
@@ -302,7 +302,7 @@ class FieldAPITestCase(APITestCase):
             order_num=1
         )
         
-        url = f'/api/v1/fields/{field.id}/reorder/'
+        url = f'/api/v1/forms/fields/{field.id}/reorder/'
         data = {'new_order': 0}  # Invalid order
         
         response = self.client.post(url, data, format='json')
@@ -311,7 +311,7 @@ class FieldAPITestCase(APITestCase):
     
     def test_field_types_action(self):
         """Test getting available field types."""
-        url = '/api/v1/fields/field_types/'
+        url = '/api/v1/forms/fields/field_types/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -340,7 +340,7 @@ class FieldAPITestCase(APITestCase):
             order_num=2
         )
         
-        url = '/api/v1/fields/my_fields/'
+        url = '/api/v1/forms/fields/my_fields/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -350,7 +350,7 @@ class FieldAPITestCase(APITestCase):
         """Test that unauthenticated users cannot access endpoints."""
         self.client.credentials()  # Remove authentication
         
-        url = '/api/v1/fields/'
+        url = '/api/v1/forms/fields/'
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

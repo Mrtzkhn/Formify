@@ -1,16 +1,17 @@
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import transaction
-from django.db.models import Max, F
 from django.shortcuts import get_object_or_404
 from forms.models import Field, Form
-from typing import Dict, List, Any, Optional
+from forms.repositories.field_repository import FieldRepository
+from typing import Dict, List, Any
 
 
 class FieldService:
     """Service layer for field operations with business logic."""
     
-    @staticmethod
-    def create_field(user, form_id: str, field_data: Dict[str, Any]) -> Field:
+    def __init__(self):
+        self.field_repository = FieldRepository()
+    
+    def create_field(self, user, form_id: str, field_data: Dict[str, Any]) -> Field:
         """
         Create a new field for a form.
         
@@ -31,29 +32,26 @@ class FieldService:
         
         # Set default order number if not provided
         if 'order_num' not in field_data:
-            max_order = Field.objects.filter(form=form).aggregate(
-                max_order=Max('order_num')
-            )['max_order'] or 0
+            max_order = self.field_repository.get_max_order_for_form(str(form.id))
             field_data['order_num'] = max_order + 1
         
         # Validate field options
         field_type = field_data.get('field_type')
         if field_type:
-            FieldService.validate_field_options(
+            self.validate_field_options(
                 field_type, 
                 field_data.get('options', {})
             )
         
         # Create the field
-        field = Field.objects.create(
+        field = self.field_repository.create(
             form=form,
             **field_data
         )
         
         return field
     
-    @staticmethod
-    def get_user_fields(user) -> List[Field]:
+    def get_user_fields(self, user) -> List[Field]:
         """
         Get all fields for user's forms.
         
@@ -63,10 +61,9 @@ class FieldService:
         Returns:
             List[Field]: List of fields belonging to user's forms
         """
-        return Field.objects.filter(form__created_by=user).order_by('form', 'order_num')
+        return self.field_repository.get_by_user(str(user.id))
     
-    @staticmethod
-    def get_form_fields(user, form_id: str) -> List[Field]:
+    def get_form_fields(self, user, form_id: str) -> List[Field]:
         """
         Get all fields for a specific form.
         
@@ -81,10 +78,9 @@ class FieldService:
             PermissionDenied: If user doesn't own the form
         """
         form = get_object_or_404(Form, id=form_id, created_by=user)
-        return Field.objects.filter(form=form).order_by('order_num')
+        return self.field_repository.get_by_form(str(form.id))
     
-    @staticmethod
-    def update_field(user, field_id: str, field_data: Dict[str, Any]) -> Field:
+    def update_field(self, user, field_id: str, field_data: Dict[str, Any]) -> Field:
         """
         Update an existing field.
         
@@ -106,17 +102,12 @@ class FieldService:
         if 'field_type' in field_data or 'options' in field_data:
             field_type = field_data.get('field_type', field.field_type)
             options = field_data.get('options', field.options)
-            FieldService.validate_field_options(field_type, options)
+            self.validate_field_options(field_type, options)
         
-        # Update the field
-        for key, value in field_data.items():
-            setattr(field, key, value)
-        
-        field.save()
-        return field
+        # Update the field using repository
+        return self.field_repository.update(field, **field_data)
     
-    @staticmethod
-    def delete_field(user, field_id: str) -> bool:
+    def delete_field(self, user, field_id: str) -> bool:
         """
         Delete a field.
         
@@ -132,31 +123,19 @@ class FieldService:
         """
         field = get_object_or_404(Field, id=field_id, form__created_by=user)
         
-        # Reorder remaining fields
-        with transaction.atomic():
-            # Get all fields in the same form with order_num > deleted field's order_num
-            remaining_fields = Field.objects.filter(
-                form=field.form,
-                order_num__gt=field.order_num
-            ).order_by('order_num')
-            
-            # Temporarily set order_num to large values to avoid conflicts
-            for i, remaining_field in enumerate(remaining_fields):
-                remaining_field.order_num = 999999 + i
-                remaining_field.save(update_fields=['order_num'])
-            
-            # Delete the field
-            field.delete()
-            
-            # Now update the remaining fields with correct order numbers
-            for i, remaining_field in enumerate(remaining_fields):
-                remaining_field.order_num = field.order_num + i
-                remaining_field.save(update_fields=['order_num'])
+        # Store the order number before deletion
+        deleted_order = field.order_num
+        form_id = str(field.form.id)
+        
+        # Delete the field
+        self.field_repository.delete(field)
+        
+        # Reorder remaining fields using repository
+        self.field_repository.reorder_fields_after_delete(form_id, deleted_order)
         
         return True
     
-    @staticmethod
-    def reorder_field(user, field_id: str, new_order: int) -> Field:
+    def reorder_field(self, user, field_id: str, new_order: int) -> Field:
         """
         Reorder a field within its form.
         
@@ -177,44 +156,28 @@ class FieldService:
         if new_order < 1:
             raise ValidationError("Order number must be at least 1.")
         
-        max_order = Field.objects.filter(form=field.form).count()
+        max_order = self.field_repository.get_field_count_for_form(str(field.form.id))
         if new_order > max_order:
             raise ValidationError(f"Order number cannot exceed {max_order}.")
         
-        with transaction.atomic():
-            old_order = field.order_num
-            
-            if new_order == old_order:
-                return field
-            
-            # Temporarily set the field's order to a large value to avoid conflicts
-            field.order_num = 999999
-            field.save(update_fields=['order_num'])
-            
-            # Shift other fields to make room
-            if new_order > old_order:
-                # Moving down: shift fields between old_order+1 and new_order up
-                Field.objects.filter(
-                    form=field.form,
-                    order_num__gt=old_order,
-                    order_num__lte=new_order
-                ).exclude(id=field.id).update(order_num=F('order_num') - 1)
-            else:
-                # Moving up: shift fields between new_order and old_order-1 down
-                Field.objects.filter(
-                    form=field.form,
-                    order_num__gte=new_order,
-                    order_num__lt=old_order
-                ).exclude(id=field.id).update(order_num=F('order_num') + 1)
-            
-            # Update the field's order
-            field.order_num = new_order
-            field.save(update_fields=['order_num'])
+        old_order = field.order_num
         
+        if new_order == old_order:
+            return field
+        
+        # Use repository to handle reordering
+        self.field_repository.reorder_fields_for_move(
+            str(field.form.id), 
+            old_order, 
+            new_order, 
+            str(field.id)
+        )
+        
+        # Refresh and return the field
+        field.refresh_from_db()
         return field
     
-    @staticmethod
-    def validate_field_options(field_type: str, options: Dict[str, Any]) -> bool:
+    def validate_field_options(self, field_type: str, options: Dict[str, Any]) -> bool:
         """
         Validate field options based on field type.
         
@@ -284,8 +247,7 @@ class FieldService:
         
         return True
     
-    @staticmethod
-    def get_field_types() -> List[Dict[str, str]]:
+    def get_field_types(self) -> List[Dict[str, str]]:
         """
         Get available field types with their display names.
         
