@@ -24,6 +24,7 @@ class FieldServiceTestCase(TestCase):
             full_name='Other User',
             password='testpass123'
         )
+        self.field_service = FieldService()
         self.form = Form.objects.create(
             title='Test Form',
             description='Test Description',
@@ -45,7 +46,7 @@ class FieldServiceTestCase(TestCase):
             'order_num': 1
         }
         
-        field = FieldService.create_field(
+        field = self.field_service.create_field(
             user=self.user,
             form_id=str(self.form.id),
             field_data=field_data
@@ -91,7 +92,7 @@ class FieldServiceTestCase(TestCase):
             'options': {}
         }
         
-        field = FieldService.create_field(
+        field = self.field_service.create_field(
             user=self.user,
             form_id=str(self.form.id),
             field_data=field_data
@@ -123,7 +124,7 @@ class FieldServiceTestCase(TestCase):
             order_num=1
         )
         
-        fields = FieldService.get_user_fields(self.user)
+        fields = self.field_service.get_user_fields(self.user)
         
         self.assertEqual(len(fields), 2)
         self.assertIn(field1, fields)
@@ -144,7 +145,7 @@ class FieldServiceTestCase(TestCase):
             order_num=2
         )
         
-        fields = FieldService.get_form_fields(
+        fields = self.field_service.get_form_fields(
             user=self.user,
             form_id=str(self.form.id)
         )
@@ -176,7 +177,7 @@ class FieldServiceTestCase(TestCase):
             'is_required': True
         }
         
-        updated_field = FieldService.update_field(
+        updated_field = self.field_service.update_field(
             user=self.user,
             field_id=str(field.id),
             field_data=field_data
@@ -224,7 +225,7 @@ class FieldServiceTestCase(TestCase):
         )
         
         # Delete field2 (middle field)
-        result = FieldService.delete_field(
+        result = self.field_service.delete_field(
             user=self.user,
             field_id=str(field2.id)
         )
@@ -275,7 +276,7 @@ class FieldServiceTestCase(TestCase):
         )
         
         # Move field1 to position 3
-        updated_field = FieldService.reorder_field(
+        updated_field = self.field_service.reorder_field(
             user=self.user,
             field_id=str(field1.id),
             new_order=3
@@ -300,7 +301,7 @@ class FieldServiceTestCase(TestCase):
         )
         
         with self.assertRaises(ValidationError):
-            FieldService.reorder_field(
+            self.field_service.reorder_field(
                 user=self.user,
                 field_id=str(field.id),
                 new_order=0  # Invalid order
@@ -317,14 +318,14 @@ class FieldServiceTestCase(TestCase):
         }
         
         self.assertTrue(
-            FieldService.validate_field_options('select', valid_options)
+            self.field_service.validate_field_options('select', valid_options)
         )
         
         # Invalid select options (no choices)
         invalid_options = {}
         
         with self.assertRaises(ValidationError):
-            FieldService.validate_field_options('select', invalid_options)
+            self.field_service.validate_field_options('select', invalid_options)
     
     def test_validate_field_options_rating(self):
         """Test validation of rating field options."""
@@ -336,7 +337,7 @@ class FieldServiceTestCase(TestCase):
         }
         
         self.assertTrue(
-            FieldService.validate_field_options('rating', valid_options)
+            self.field_service.validate_field_options('rating', valid_options)
         )
         
         # Invalid rating options (min >= max)
@@ -346,7 +347,7 @@ class FieldServiceTestCase(TestCase):
         }
         
         with self.assertRaises(ValidationError):
-            FieldService.validate_field_options('rating', invalid_options)
+            self.field_service.validate_field_options('rating', invalid_options)
     
     def test_validate_field_options_file(self):
         """Test validation of file field options."""
@@ -357,7 +358,7 @@ class FieldServiceTestCase(TestCase):
         }
         
         self.assertTrue(
-            FieldService.validate_field_options('file', valid_options)
+            self.field_service.validate_field_options('file', valid_options)
         )
         
         # Invalid file options (no allowed_types)
@@ -366,11 +367,11 @@ class FieldServiceTestCase(TestCase):
         }
         
         with self.assertRaises(ValidationError):
-            FieldService.validate_field_options('file', invalid_options)
+            self.field_service.validate_field_options('file', invalid_options)
     
     def test_get_field_types(self):
         """Test getting available field types."""
-        field_types = FieldService.get_field_types()
+        field_types = self.field_service.get_field_types()
         
         self.assertIsInstance(field_types, list)
         self.assertGreater(len(field_types), 0)

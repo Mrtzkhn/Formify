@@ -74,7 +74,8 @@ class FieldCreateSerializer(serializers.ModelSerializer):
         from forms.services.services import FieldService
         
         try:
-            FieldService.validate_field_options(field_type, value)
+            field_service = FieldService()
+            field_service.validate_field_options(field_type, value)
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
         
@@ -105,7 +106,8 @@ class FieldUpdateSerializer(serializers.ModelSerializer):
         from forms.services.services import FieldService
         
         try:
-            FieldService.validate_field_options(field_type, value)
+            field_service = FieldService()
+            field_service.validate_field_options(field_type, value)
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
         
