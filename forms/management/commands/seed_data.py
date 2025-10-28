@@ -5,8 +5,6 @@ from forms.models import (
     Form, Field, Process, ProcessStep, Category, EntityCategory, 
     Response as FormResponse, Answer, FormView
 )
-import json
-import uuid
 
 User = get_user_model()
 

@@ -5,8 +5,6 @@ This script demonstrates how to use the APIs with the seeded data.
 """
 
 import requests
-import json
-from typing import Dict, Any
 
 BASE_URL = "http://localhost:8000/api/v1"
 
