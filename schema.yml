@@ -1,0 +1,3172 @@
+openapi: 3.0.3
+info:
+  title: Formify API
+  version: 1.0.0
+  description: An API for creating forms
+paths:
+  /api/:
+    get:
+      operationId: api_retrieve
+      description: Get API information and available endpoints
+      summary: API Root
+      tags:
+      - API Information
+      responses:
+        '200':
+          description: No response body
+  /api/v1/accounts/login/:
+    post:
+      operationId: api_v1_accounts_login_create
+      description: Obtain a JWT token pair for an existing user
+      summary: Login
+      tags:
+      - Accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+        '401':
+          description: Invalid credentials
+  /api/v1/accounts/logout/:
+    post:
+      operationId: api_v1_accounts_logout_create
+      description: Blacklist the provided refresh token. Returns no content on success.
+      summary: Logout
+      tags:
+      - Accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No content
+  /api/v1/accounts/me/:
+    get:
+      operationId: api_v1_accounts_me_retrieve
+      description: Return the authenticated user profile.
+      summary: Me
+      tags:
+      - Accounts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/accounts/ping/:
+    get:
+      operationId: api_v1_accounts_ping_retrieve
+      description: Simple version probe endpoint.
+      summary: Version ping
+      tags:
+      - Accounts
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionPing'
+          description: ''
+  /api/v1/accounts/register/:
+    post:
+      operationId: api_v1_accounts_register_create
+      description: Create a new user account and return a JWT token pair.
+      summary: Register
+      tags:
+      - Accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+        '400':
+          description: Validation error
+  /api/v1/accounts/token/refresh/:
+    post:
+      operationId: api_v1_accounts_token_refresh_create
+      description: Exchange a valid refresh token for a new access token.
+      summary: Refresh JWT
+      tags:
+      - Accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/forms/:
+    get:
+      operationId: api_v1_forms_list
+      description: Get all forms owned by the authenticated user
+      summary: List Forms
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FormList'
+          description: ''
+    post:
+      operationId: api_v1_forms_create
+      description: Create a new form
+      summary: Create Form
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormCreate'
+          description: ''
+  /api/v1/forms/{id}/:
+    get:
+      operationId: api_v1_forms_retrieve
+      description: Get a specific form by ID
+      summary: Get Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+          description: ''
+    put:
+      operationId: api_v1_forms_update
+      description: Update an existing form
+      summary: Update Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_partial_update
+      description: Partially update an existing form
+      summary: Partial Update Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_destroy
+      description: Delete a form
+      summary: Delete Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/answers/:
+    get:
+      operationId: api_v1_forms_answers_list
+      description: Get all answers for responses owned by the authenticated user
+      summary: List Answers
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnswerList'
+          description: ''
+    post:
+      operationId: api_v1_forms_answers_create
+      description: Create a new answer for a response
+      summary: Create Answer
+      tags:
+      - Form Answers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnswerCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnswerCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerCreate'
+          description: ''
+  /api/v1/forms/answers/{id}/:
+    get:
+      operationId: api_v1_forms_answers_retrieve
+      description: Get a specific answer by ID
+      summary: Get Answer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this answer.
+        required: true
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+    put:
+      operationId: api_v1_forms_answers_update
+      description: Update an existing answer
+      summary: Update Answer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this answer.
+        required: true
+      tags:
+      - Form Answers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Answer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Answer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Answer'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+    patch:
+      operationId: api_v1_forms_answers_partial_update
+      description: Partially update an existing answer
+      summary: Partial Update Answer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this answer.
+        required: true
+      tags:
+      - Form Answers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAnswer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAnswer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAnswer'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+    delete:
+      operationId: api_v1_forms_answers_destroy
+      description: Delete an answer
+      summary: Delete Answer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this answer.
+        required: true
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/answers/by_field/:
+    get:
+      operationId: api_v1_forms_answers_by_field_retrieve
+      description: Get all answers submitted for a specific field.
+      summary: Get Answers by Field
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+  /api/v1/forms/answers/by_response/:
+    get:
+      operationId: api_v1_forms_answers_by_response_retrieve
+      description: Get all answers for a specific response
+      summary: Get Answers by Response
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+  /api/v1/forms/answers/field_statistics/:
+    get:
+      operationId: api_v1_forms_answers_field_statistics_retrieve
+      description: Get aggregated statistics for a specific field (counts, common
+        values, timeline).
+      summary: Get Field Statistics
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+  /api/v1/forms/answers/my_answers/:
+    get:
+      operationId: api_v1_forms_answers_my_answers_retrieve
+      description: Get all answers for responses owned by the authenticated user
+      summary: List My Answers
+      tags:
+      - Form Answers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: ''
+  /api/v1/forms/categories/:
+    get:
+      operationId: api_v1_forms_categories_list
+      description: Get all categories owned by the authenticated user
+      summary: List Categories
+      tags:
+      - Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryList'
+          description: ''
+    post:
+      operationId: api_v1_forms_categories_create
+      description: Create a new category
+      summary: Create Category
+      tags:
+      - Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryCreate'
+          description: ''
+  /api/v1/forms/categories/{id}/:
+    get:
+      operationId: api_v1_forms_categories_retrieve
+      description: Get a specific category by ID
+      summary: Get Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      tags:
+      - Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    put:
+      operationId: api_v1_forms_categories_update
+      description: Update an existing category
+      summary: Update Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      tags:
+      - Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_categories_partial_update
+      description: Partially update an existing category
+      summary: Partial Update Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      tags:
+      - Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_categories_destroy
+      description: Delete a category
+      summary: Delete Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      tags:
+      - Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/categories/my_categories/:
+    get:
+      operationId: api_v1_forms_categories_my_categories_retrieve
+      description: Get all categories created by the authenticated user
+      summary: List My Categories
+      tags:
+      - Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/forms/entity-categories/:
+    get:
+      operationId: api_v1_forms_entity_categories_list
+      description: Get all entity categories for entities owned by the authenticated
+        user
+      summary: List Entity Categories
+      tags:
+      - Entity Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntityCategory'
+          description: ''
+    post:
+      operationId: api_v1_forms_entity_categories_create
+      description: Create a new entity category association
+      summary: Create Entity Category
+      tags:
+      - Entity Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityCategoryCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EntityCategoryCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EntityCategoryCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategoryCreate'
+          description: ''
+  /api/v1/forms/entity-categories/{id}/:
+    get:
+      operationId: api_v1_forms_entity_categories_retrieve
+      description: Get a specific entity category by ID
+      summary: Get Entity Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this entity category.
+        required: true
+      tags:
+      - Entity Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategory'
+          description: ''
+    put:
+      operationId: api_v1_forms_entity_categories_update
+      description: Update an existing entity category
+      summary: Update Entity Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this entity category.
+        required: true
+      tags:
+      - Entity Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EntityCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EntityCategory'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategory'
+          description: ''
+    patch:
+      operationId: api_v1_forms_entity_categories_partial_update
+      description: Partially update an existing entity category
+      summary: Partial Update Entity Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this entity category.
+        required: true
+      tags:
+      - Entity Categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEntityCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEntityCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEntityCategory'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategory'
+          description: ''
+    delete:
+      operationId: api_v1_forms_entity_categories_destroy
+      description: Delete an entity category
+      summary: Delete Entity Category
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this entity category.
+        required: true
+      tags:
+      - Entity Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/entity-categories/by_entity/:
+    get:
+      operationId: api_v1_forms_entity_categories_by_entity_retrieve
+      description: Get all categories for a specific entity
+      summary: Get Entity Categories by Entity
+      tags:
+      - Entity Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategory'
+          description: ''
+  /api/v1/forms/entity-categories/my_entity_categories/:
+    get:
+      operationId: api_v1_forms_entity_categories_my_entity_categories_retrieve
+      description: Get all entity categories for entities owned by the authenticated
+        user
+      summary: List My Entity Categories
+      tags:
+      - Entity Categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityCategory'
+          description: ''
+  /api/v1/forms/fields/:
+    get:
+      operationId: api_v1_forms_fields_list
+      description: Get all fields for forms owned by the authenticated user
+      summary: List Fields
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldList'
+          description: ''
+    post:
+      operationId: api_v1_forms_fields_create
+      description: Create a new field for a form
+      summary: Create Field
+      tags:
+      - Form Fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FieldCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldCreate'
+          description: ''
+  /api/v1/forms/fields/{id}/:
+    get:
+      operationId: api_v1_forms_fields_retrieve
+      description: Get a specific field by ID
+      summary: Get Field
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this field.
+        required: true
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+          description: ''
+    put:
+      operationId: api_v1_forms_fields_update
+      description: Update an existing field
+      summary: Update Field
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this field.
+        required: true
+      tags:
+      - Form Fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FieldUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FieldUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_fields_partial_update
+      description: Partially update an existing field
+      summary: Partial Update Field
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this field.
+        required: true
+      tags:
+      - Form Fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFieldUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFieldUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFieldUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_fields_destroy
+      description: Delete a field
+      summary: Delete Field
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this field.
+        required: true
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/fields/{id}/reorder/:
+    post:
+      operationId: api_v1_forms_fields_reorder_create
+      description: Change the order of a field within its form
+      summary: Reorder Field
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this field.
+        required: true
+      tags:
+      - Form Fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Field'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Field'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Field'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+          description: ''
+  /api/v1/forms/fields/by_form/:
+    get:
+      operationId: api_v1_forms_fields_by_form_retrieve
+      description: Get all fields for a specific form
+      summary: Get Fields by Form
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+          description: ''
+  /api/v1/forms/fields/field_types/:
+    get:
+      operationId: api_v1_forms_fields_field_types_retrieve
+      description: Get available field types (text, select, checkbox)
+      summary: Get Field Types
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+          description: ''
+  /api/v1/forms/fields/my_fields/:
+    get:
+      operationId: api_v1_forms_fields_my_fields_retrieve
+      description: Get all fields for forms owned by the authenticated user
+      summary: Get My Fields
+      tags:
+      - Form Fields
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+          description: ''
+  /api/v1/forms/my_forms/:
+    get:
+      operationId: api_v1_forms_my_forms_retrieve
+      description: Get all forms created by the authenticated user
+      summary: List My Forms
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+          description: ''
+  /api/v1/forms/private/forms/validate/:
+    post:
+      operationId: api_v1_forms_private_forms_validate_create
+      description: Validate access to a private form using a password.
+      summary: Validate Private Form Access
+      tags:
+      - Public Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicFormAccess'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PublicFormAccess'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PublicFormAccess'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Access granted
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Access denied
+          description: ''
+  /api/v1/forms/process-steps/:
+    get:
+      operationId: api_v1_forms_process_steps_list
+      description: Get all process steps for processes owned by the authenticated
+        user
+      summary: List Process Steps
+      tags:
+      - Process Steps
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessStepList'
+          description: ''
+    post:
+      operationId: api_v1_forms_process_steps_create
+      description: Create a new process step
+      summary: Create Process Step
+      tags:
+      - Process Steps
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessStepCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProcessStepCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProcessStepCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStepCreate'
+          description: ''
+  /api/v1/forms/process-steps/{id}/:
+    get:
+      operationId: api_v1_forms_process_steps_retrieve
+      description: Get a specific process step by ID
+      summary: Get Process Step
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process step.
+        required: true
+      tags:
+      - Process Steps
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStep'
+          description: ''
+    put:
+      operationId: api_v1_forms_process_steps_update
+      description: Update an existing process step
+      summary: Update Process Step
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process step.
+        required: true
+      tags:
+      - Process Steps
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessStepUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProcessStepUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProcessStepUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStepUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_process_steps_partial_update
+      description: Partially update an existing process step
+      summary: Partial Update Process Step
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process step.
+        required: true
+      tags:
+      - Process Steps
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessStepUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessStepUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessStepUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStepUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_process_steps_destroy
+      description: Delete a process step
+      summary: Delete Process Step
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process step.
+        required: true
+      tags:
+      - Process Steps
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/process-steps/{id}/reorder/:
+    post:
+      operationId: api_v1_forms_process_steps_reorder_create
+      description: Change the order of a process step within its process.
+      summary: Reorder Process Step
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process step.
+        required: true
+      tags:
+      - Process Steps
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessStep'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProcessStep'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProcessStep'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStep'
+          description: ''
+  /api/v1/forms/process-steps/by_process/:
+    get:
+      operationId: api_v1_forms_process_steps_by_process_retrieve
+      description: Get all steps for a specific process
+      summary: Get Process Steps by Process
+      tags:
+      - Process Steps
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStep'
+          description: ''
+  /api/v1/forms/process-steps/my_steps/:
+    get:
+      operationId: api_v1_forms_process_steps_my_steps_retrieve
+      description: Get all process steps for processes owned by the authenticated
+        user
+      summary: List My Process Steps
+      tags:
+      - Process Steps
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStep'
+          description: ''
+  /api/v1/forms/processes/:
+    get:
+      operationId: api_v1_forms_processes_list
+      description: Get all processes owned by the authenticated user
+      summary: List Processes
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessList'
+          description: ''
+    post:
+      operationId: api_v1_forms_processes_create
+      description: Create a new process
+      summary: Create Process
+      tags:
+      - Processes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProcessCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProcessCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessCreate'
+          description: ''
+  /api/v1/forms/processes/{id}/:
+    get:
+      operationId: api_v1_forms_processes_retrieve
+      description: Get a specific process by ID
+      summary: Get Process
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process.
+        required: true
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: ''
+    put:
+      operationId: api_v1_forms_processes_update
+      description: Update an existing process
+      summary: Update Process
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process.
+        required: true
+      tags:
+      - Processes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProcessUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProcessUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_processes_partial_update
+      description: Partially update an existing process
+      summary: Partial Update Process
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process.
+        required: true
+      tags:
+      - Processes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProcessUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_processes_destroy
+      description: Delete a process
+      summary: Delete Process
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this process.
+        required: true
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/processes/my_processes/:
+    get:
+      operationId: api_v1_forms_processes_my_processes_retrieve
+      description: Get all processes created by the authenticated user
+      summary: List My Processes
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: ''
+  /api/v1/forms/processes/process_types/:
+    get:
+      operationId: api_v1_forms_processes_process_types_retrieve
+      description: List available process types (linear, free).
+      summary: Get Process Types
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: ''
+  /api/v1/forms/processes/public_processes/:
+    get:
+      operationId: api_v1_forms_processes_public_processes_retrieve
+      description: Get all public processes
+      summary: List Public Processes
+      tags:
+      - Processes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: ''
+  /api/v1/forms/public/forms/:
+    get:
+      operationId: api_v1_forms_public_forms_list
+      description: Get all public forms (no authentication required)
+      summary: List Public Forms
+      tags:
+      - Public Forms
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicForm'
+          description: ''
+  /api/v1/forms/public/forms/{id}/:
+    get:
+      operationId: api_v1_forms_public_forms_retrieve
+      description: Get a public form by ID (no authentication required)
+      summary: Get Public Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Public Forms
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicForm'
+          description: ''
+  /api/v1/forms/public/forms/{id}/submit/:
+    post:
+      operationId: api_v1_forms_public_forms_submit_create
+      description: Submit a response to a public form
+      summary: Submit Response to Public Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Public Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseCreate'
+          description: ''
+  /api/v1/forms/public_forms/:
+    get:
+      operationId: api_v1_forms_public_forms_retrieve_2
+      description: Get a list of all public forms. Use /api/v1/forms/public/forms/
+        instead.
+      summary: List Public Forms (Deprecated)
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+          description: ''
+  /api/v1/forms/responses/:
+    get:
+      operationId: api_v1_forms_responses_list
+      description: Get all responses for forms owned by the authenticated user
+      summary: List Responses
+      tags:
+      - Form Responses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResponseList'
+          description: ''
+    post:
+      operationId: api_v1_forms_responses_create
+      description: Create a new response for a form
+      summary: Create Response
+      tags:
+      - Form Responses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseCreate'
+          description: ''
+  /api/v1/forms/responses/{id}/:
+    get:
+      operationId: api_v1_forms_responses_retrieve
+      description: Get a specific response by ID
+      summary: Get Response
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this response.
+        required: true
+      tags:
+      - Form Responses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+    put:
+      operationId: api_v1_forms_responses_update
+      description: Update an existing response
+      summary: Update Response
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this response.
+        required: true
+      tags:
+      - Form Responses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Response'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Response'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Response'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+    patch:
+      operationId: api_v1_forms_responses_partial_update
+      description: Partially update an existing response
+      summary: Partial Update Response
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this response.
+        required: true
+      tags:
+      - Form Responses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResponse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResponse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResponse'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+    delete:
+      operationId: api_v1_forms_responses_destroy
+      description: Delete a response
+      summary: Delete Response
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this response.
+        required: true
+      tags:
+      - Form Responses
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/forms/responses/by_form/:
+    get:
+      operationId: api_v1_forms_responses_by_form_retrieve
+      description: Get all responses for a specific form
+      summary: Get Responses by Form
+      tags:
+      - Form Responses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+  /api/v1/forms/responses/my_responses/:
+    get:
+      operationId: api_v1_forms_responses_my_responses_retrieve
+      description: Get all responses for forms owned by the authenticated user
+      summary: List My Responses
+      tags:
+      - Form Responses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+  /api/v1/forms/workflow/complete-step/:
+    post:
+      operationId: api_v1_forms_workflow_complete_step_create
+      description: Submit a response to the form associated with a process step.
+      summary: Complete Process Step
+      tags:
+      - Process Workflow
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResponseCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Bad Request
+          description: ''
+  /api/v1/forms/workflow/current-step/:
+    get:
+      operationId: api_v1_forms_workflow_current_step_retrieve
+      description: Get the current step for a linear process, considering completed
+        steps.
+      summary: Get Current Process Step
+      tags:
+      - Process Workflow
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/forms/workflow/process-steps/:
+    get:
+      operationId: api_v1_forms_workflow_process_steps_retrieve
+      description: Get all steps for a given process.
+      summary: Get Process Steps
+      tags:
+      - Process Workflow
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/forms/workflow/progress/:
+    get:
+      operationId: api_v1_forms_workflow_progress_retrieve
+      description: Get the overall progress for a process, including completed steps.
+      summary: Get Process Progress
+      tags:
+      - Process Workflow
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    Answer:
+      type: object
+      description: Serializer for displaying answer data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        response:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          readOnly: true
+        field:
+          type: string
+          format: uuid
+        field_label:
+          type: string
+          readOnly: true
+        field_type:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          title: Answer value
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - field
+      - field_label
+      - field_type
+      - id
+      - response
+      - response_id
+      - value
+    AnswerCreate:
+      type: object
+      description: Serializer for creating answers.
+      properties:
+        response:
+          type: string
+          format: uuid
+        field:
+          type: string
+          format: uuid
+        value:
+          type: string
+          title: Answer value
+      required:
+      - field
+      - response
+      - value
+    AnswerList:
+      type: object
+      description: Lightweight serializer for answer lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        field_label:
+          type: string
+          readOnly: true
+        field_type:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          title: Answer value
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - field_label
+      - field_type
+      - id
+      - value
+    Category:
+      type: object
+      description: Serializer for displaying category data.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+        created_by:
+          type: integer
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_name
+      - id
+      - name
+    CategoryCreate:
+      type: object
+      description: Serializer for creating categories.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+      required:
+      - name
+    CategoryList:
+      type: object
+      description: Lightweight serializer for category lists.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by_name
+      - id
+      - name
+    CategoryUpdate:
+      type: object
+      description: Serializer for updating categories.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+      required:
+      - name
+    EntityCategory:
+      type: object
+      description: Serializer for displaying entity category data.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        entity_type:
+          $ref: '#/components/schemas/EntityTypeEnum'
+        entity_type_display:
+          type: string
+          readOnly: true
+        entity_id:
+          type: string
+          format: uuid
+        category:
+          type: integer
+        category_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - category_name
+      - created_at
+      - entity_id
+      - entity_type
+      - entity_type_display
+      - id
+    EntityCategoryCreate:
+      type: object
+      description: Serializer for creating entity categories.
+      properties:
+        entity_type:
+          $ref: '#/components/schemas/EntityTypeEnum'
+        entity_id:
+          type: string
+          format: uuid
+        category:
+          type: integer
+      required:
+      - category
+      - entity_id
+      - entity_type
+    EntityTypeEnum:
+      enum:
+      - form
+      - process
+      type: string
+      description: |-
+        * `form` - Form
+        * `process` - Process
+    Field:
+      type: object
+      description: Serializer for displaying field data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form:
+          type: string
+          format: uuid
+        form_title:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          title: Field label
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        field_type_display:
+          type: string
+          readOnly: true
+        is_required:
+          type: boolean
+          title: Required
+        options:
+          title: Field options
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          default: 0
+          title: Order number
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - field_type
+      - field_type_display
+      - form
+      - form_title
+      - id
+      - label
+      - updated_at
+    FieldCreate:
+      type: object
+      description: Serializer for creating new fields.
+      properties:
+        form:
+          type: string
+          format: uuid
+        label:
+          type: string
+          title: Field label
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        is_required:
+          type: boolean
+          title: Required
+        options:
+          title: Field options
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          default: 0
+          title: Order number
+      required:
+      - field_type
+      - form
+      - label
+    FieldList:
+      type: object
+      description: Lightweight serializer for field lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          title: Field label
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        field_type_display:
+          type: string
+          readOnly: true
+        is_required:
+          type: boolean
+          title: Required
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+      required:
+      - field_type
+      - field_type_display
+      - id
+      - label
+    FieldTypeEnum:
+      enum:
+      - text
+      - select
+      - checkbox
+      type: string
+      description: |-
+        * `text` - Text Input
+        * `select` - Dropdown Selection
+        * `checkbox` - Checkboxes
+    FieldUpdate:
+      type: object
+      description: Serializer for updating existing fields.
+      properties:
+        label:
+          type: string
+          title: Field label
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        is_required:
+          type: boolean
+          title: Required
+        options:
+          title: Field options
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+      required:
+      - field_type
+      - label
+    Form:
+      type: object
+      description: Serializer for displaying form data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        created_by:
+          type: integer
+          readOnly: true
+          title: Creator
+        created_by_name:
+          type: string
+          readOnly: true
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+          title: Active
+        field_count:
+          type: string
+          readOnly: true
+        view_count:
+          type: string
+          readOnly: true
+        response_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_name
+      - field_count
+      - id
+      - response_count
+      - title
+      - updated_at
+      - view_count
+    FormCreate:
+      type: object
+      description: Serializer for creating new forms.
+      properties:
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+          title: Active
+      required:
+      - title
+    FormList:
+      type: object
+      description: Lightweight serializer for form lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        created_by_name:
+          type: string
+          readOnly: true
+        is_public:
+          type: boolean
+          title: Public
+        is_active:
+          type: boolean
+          title: Active
+        field_count:
+          type: string
+          readOnly: true
+        view_count:
+          type: string
+          readOnly: true
+        response_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by_name
+      - field_count
+      - id
+      - response_count
+      - title
+      - view_count
+    FormUpdate:
+      type: object
+      description: Serializer for updating existing forms.
+      properties:
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+          title: Active
+      required:
+      - title
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    LogoutRequest:
+      type: object
+      description: Request body for logout; the refresh token to blacklist.
+      properties:
+        refresh:
+          type: string
+          description: Refresh token to blacklist
+      required:
+      - refresh
+    PatchedAnswer:
+      type: object
+      description: Serializer for displaying answer data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        response:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          readOnly: true
+        field:
+          type: string
+          format: uuid
+        field_label:
+          type: string
+          readOnly: true
+        field_type:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          title: Answer value
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCategoryUpdate:
+      type: object
+      description: Serializer for updating categories.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+    PatchedEntityCategory:
+      type: object
+      description: Serializer for displaying entity category data.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        entity_type:
+          $ref: '#/components/schemas/EntityTypeEnum'
+        entity_type_display:
+          type: string
+          readOnly: true
+        entity_id:
+          type: string
+          format: uuid
+        category:
+          type: integer
+        category_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedFieldUpdate:
+      type: object
+      description: Serializer for updating existing fields.
+      properties:
+        label:
+          type: string
+          title: Field label
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        is_required:
+          type: boolean
+          title: Required
+        options:
+          title: Field options
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+    PatchedFormUpdate:
+      type: object
+      description: Serializer for updating existing forms.
+      properties:
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+          title: Active
+    PatchedProcessStepUpdate:
+      type: object
+      description: Serializer for updating process steps.
+      properties:
+        step_name:
+          type: string
+          maxLength: 255
+        step_description:
+          type: string
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+        is_mandatory:
+          type: boolean
+          title: Mandatory
+    PatchedProcessUpdate:
+      type: object
+      description: Serializer for updating processes.
+      properties:
+        title:
+          type: string
+          title: Process title
+          maxLength: 255
+        description:
+          type: string
+        process_type:
+          $ref: '#/components/schemas/ProcessTypeEnum'
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+    PatchedResponse:
+      type: object
+      description: Serializer for displaying response data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form:
+          type: string
+          format: uuid
+        form_title:
+          type: string
+          readOnly: true
+        submitted_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_by_name:
+          type: string
+          readOnly: true
+        ip_address:
+          type: string
+          readOnly: true
+        user_agent:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        answer_count:
+          type: string
+          readOnly: true
+    Process:
+      type: object
+      description: Serializer for displaying process data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          title: Process title
+          maxLength: 255
+        description:
+          type: string
+        process_type:
+          $ref: '#/components/schemas/ProcessTypeEnum'
+        created_by:
+          type: integer
+          readOnly: true
+          title: Creator
+        created_by_name:
+          type: string
+          readOnly: true
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+          title: Active
+        step_count:
+          type: string
+          readOnly: true
+        process_steps:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_name
+      - id
+      - process_steps
+      - process_type
+      - step_count
+      - title
+      - updated_at
+    ProcessCreate:
+      type: object
+      description: Serializer for creating processes.
+      properties:
+        title:
+          type: string
+          title: Process title
+          maxLength: 255
+        description:
+          type: string
+        process_type:
+          $ref: '#/components/schemas/ProcessTypeEnum'
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+      required:
+      - process_type
+      - title
+    ProcessList:
+      type: object
+      description: Lightweight serializer for process lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          title: Process title
+          maxLength: 255
+        description:
+          type: string
+        process_type:
+          $ref: '#/components/schemas/ProcessTypeEnum'
+        created_by_name:
+          type: string
+          readOnly: true
+        is_public:
+          type: boolean
+          title: Public
+        is_active:
+          type: boolean
+          title: Active
+        step_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by_name
+      - id
+      - process_type
+      - step_count
+      - title
+    ProcessStep:
+      type: object
+      description: Serializer for displaying process step data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        process:
+          type: string
+          format: uuid
+        form:
+          type: string
+          format: uuid
+        form_title:
+          type: string
+          readOnly: true
+        form_description:
+          type: string
+          readOnly: true
+        step_name:
+          type: string
+          maxLength: 255
+        step_description:
+          type: string
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          default: 0
+          title: Order number
+        is_mandatory:
+          type: boolean
+          title: Mandatory
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - form
+      - form_description
+      - form_title
+      - id
+      - process
+      - step_name
+      - updated_at
+    ProcessStepCreate:
+      type: object
+      description: Serializer for creating process steps.
+      properties:
+        process:
+          type: string
+          format: uuid
+        form:
+          type: string
+          format: uuid
+        step_name:
+          type: string
+          maxLength: 255
+        step_description:
+          type: string
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          default: 0
+          title: Order number
+        is_mandatory:
+          type: boolean
+          title: Mandatory
+      required:
+      - form
+      - process
+      - step_name
+    ProcessStepList:
+      type: object
+      description: Lightweight serializer for process step lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form:
+          type: string
+          format: uuid
+        form_title:
+          type: string
+          readOnly: true
+        step_name:
+          type: string
+          maxLength: 255
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+        is_mandatory:
+          type: boolean
+          title: Mandatory
+      required:
+      - form
+      - form_title
+      - id
+      - step_name
+    ProcessStepUpdate:
+      type: object
+      description: Serializer for updating process steps.
+      properties:
+        step_name:
+          type: string
+          maxLength: 255
+        step_description:
+          type: string
+        order_num:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Order number
+        is_mandatory:
+          type: boolean
+          title: Mandatory
+      required:
+      - step_name
+    ProcessTypeEnum:
+      enum:
+      - linear
+      - free
+      type: string
+      description: |-
+        * `linear` - Linear Process
+        * `free` - Free Process
+    ProcessUpdate:
+      type: object
+      description: Serializer for updating processes.
+      properties:
+        title:
+          type: string
+          title: Process title
+          maxLength: 255
+        description:
+          type: string
+        process_type:
+          $ref: '#/components/schemas/ProcessTypeEnum'
+        is_public:
+          type: boolean
+          title: Public
+        access_password:
+          type: string
+          nullable: true
+          maxLength: 255
+      required:
+      - process_type
+      - title
+    PublicForm:
+      type: object
+      description: Serializer for public form access (without sensitive data).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          title: Form title
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+          title: Public
+        field_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - field_count
+      - id
+      - title
+    PublicFormAccess:
+      type: object
+      description: Serializer for validating private form access.
+      properties:
+        form_id:
+          type: string
+          format: uuid
+        password:
+          type: string
+          maxLength: 255
+      required:
+      - form_id
+      - password
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 255
+        phone_number:
+          type: string
+          maxLength: 20
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - full_name
+      - password
+    Response:
+      type: object
+      description: Serializer for displaying response data.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form:
+          type: string
+          format: uuid
+        form_title:
+          type: string
+          readOnly: true
+        submitted_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_by_name:
+          type: string
+          readOnly: true
+        ip_address:
+          type: string
+          readOnly: true
+        user_agent:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        answer_count:
+          type: string
+          readOnly: true
+      required:
+      - answer_count
+      - form
+      - form_title
+      - id
+      - ip_address
+      - submitted_at
+      - submitted_by
+      - submitted_by_name
+      - user_agent
+    ResponseCreate:
+      type: object
+      description: Serializer for creating responses.
+      properties:
+        form:
+          type: string
+          format: uuid
+        answers:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          writeOnly: true
+          description: List of answers with field_id and value
+      required:
+      - answers
+      - form
+    ResponseList:
+      type: object
+      description: Lightweight serializer for response lists.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form_title:
+          type: string
+          readOnly: true
+        submitted_by_name:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - form_title
+      - id
+      - submitted_at
+      - submitted_by_name
+    TokenPair:
+      type: object
+      description: Simple pair of JWT tokens.
+      properties:
+        refresh:
+          type: string
+          description: JWT refresh token
+        access:
+          type: string
+          description: JWT access token
+      required:
+      - access
+      - refresh
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        full_name:
+          type: string
+          maxLength: 255
+        phone_number:
+          type: string
+          nullable: true
+          maxLength: 20
+        is_active:
+          type: boolean
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - email
+      - full_name
+      - id
+      - is_active
+    VersionPing:
+      type: object
+      properties:
+        version:
+          type: string
+      required:
+      - version
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
