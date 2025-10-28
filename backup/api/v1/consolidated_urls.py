@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from forms.api.v1.views import (
+from forms.api.v1.consolidated_views import (
     FieldViewSet, FormViewSet, PublicFormViewSet, PrivateFormViewSet,
     ProcessViewSet, ProcessStepViewSet, ProcessWorkflowViewSet,
     CategoryViewSet, EntityCategoryViewSet, ResponseViewSet, AnswerViewSet

@@ -5,10 +5,11 @@ from forms.models import (
     Field, Form, Process, ProcessStep, Category, EntityCategory, 
     Response as FormResponse, Answer, FormView
 )
-from forms.repositories.repositories import (
-    FieldRepository, FormRepository, ProcessRepository, ProcessStepRepository,
-    CategoryRepository, EntityCategoryRepository, ResponseRepository, AnswerRepository
-)
+from forms.repositories.field_repository import FieldRepository
+from forms.repositories.form_repository import FormRepository
+from forms.repositories.process_repository import ProcessRepository, ProcessStepRepository
+from forms.repositories.category_repository import CategoryRepository, EntityCategoryRepository
+from forms.repositories.response_repository import ResponseRepository, AnswerRepository
 from typing import Dict, List, Any
 
 
@@ -305,9 +306,7 @@ class ProcessStepService:
         return self.process_step_repository.create(
             process=process,
             form=form,
-            step_name=step_data.get('step_name', ''),
-            order_num=step_data.get('order_num', 1),
-            is_mandatory=step_data.get('is_mandatory', True)
+            **step_data
         )
 
     def get_user_process_steps(self, user) -> List[ProcessStep]:
@@ -348,32 +347,6 @@ class ProcessStepService:
         """Get a process step by ID (for public access)."""
         return self.process_step_repository.get_by_id(step_id)
 
-    def reorder_step(self, user, step_id: str, new_order: int) -> ProcessStep:
-        """Reorder a process step within its process."""
-        step = get_object_or_404(ProcessStep, id=step_id, process__created_by=user)
-        
-        if new_order < 1:
-            raise ValidationError("Order number must be at least 1.")
-        
-        max_order = self.process_step_repository.get_step_count_for_process(str(step.process.id))
-        if new_order > max_order:
-            raise ValidationError(f"Order number cannot exceed {max_order}.")
-        
-        old_order = step.order_num
-        
-        if new_order == old_order:
-            return step
-        
-        self.process_step_repository.reorder_steps_for_move(
-            str(step.process.id), 
-            old_order, 
-            new_order, 
-            str(step.id)
-        )
-        
-        step.refresh_from_db()
-        return step
-
 
 # =============================================================================
 # CATEGORY SERVICE
@@ -384,14 +357,9 @@ class CategoryService:
     
     def __init__(self):
         self.category_repository = CategoryRepository()
-        self.entity_category_repository = EntityCategoryRepository()
     
     def create_category(self, user, category_data: Dict[str, Any]) -> Category:
         """Create a new category."""
-        # Check if category with same name already exists for this user
-        if self.category_repository.exists_by_name(category_data['name'], str(user.id)):
-            raise ValidationError("A category with this name already exists.")
-        
         return self.category_repository.create(created_by=user, **category_data)
 
     def get_user_categories(self, user) -> List[Category]:
@@ -410,11 +378,6 @@ class CategoryService:
     def delete_category(self, user, category_id: str) -> bool:
         """Delete a category."""
         category = get_object_or_404(Category, id=category_id, created_by=user)
-        
-        # Check if category has associated entities
-        if self.entity_category_repository.exists_by_category(str(category.id)):
-            raise ValidationError("Cannot delete category with associated entities.")
-        
         return self.category_repository.delete(category)
 
 
@@ -440,7 +403,8 @@ class EntityCategoryService:
         return self.entity_category_repository.create(
             entity_type=entity_type,
             entity_id=entity_id,
-            category=category
+            category=category,
+            **category_data
         )
 
     def get_user_entity_categories(self, user) -> List[EntityCategory]:
@@ -495,19 +459,6 @@ class ResponseService:
 
         if not answers_data:
             raise ValidationError("At least one answer is required.")
-
-        # Get all required fields for the form
-        required_fields = Field.objects.filter(form=form, is_required=True)
-        answered_field_ids = {answer_data.get('field_id') for answer_data in answers_data if isinstance(answer_data, dict)}
-        
-        # Check if all required fields are answered
-        missing_required_fields = []
-        for field in required_fields:
-            if str(field.id) not in answered_field_ids:
-                missing_required_fields.append(field.label)
-        
-        if missing_required_fields:
-            raise ValidationError(f"Missing required fields: {', '.join(missing_required_fields)}")
 
         with transaction.atomic():
             # Create the response
@@ -599,13 +550,3 @@ class AnswerService:
         """Delete an answer."""
         answer = get_object_or_404(Answer, id=answer_id, response__form__created_by=user)
         return self.answer_repository.delete(answer)
-
-    def get_field_answers(self, user, field_id: str) -> List[Answer]:
-        """Get all answers for a specific field."""
-        field = get_object_or_404(Field, id=field_id, form__created_by=user)
-        return self.answer_repository.get_by_field(str(field.id))
-
-    def get_field_statistics(self, user, field_id: str) -> Dict[str, Any]:
-        """Get statistics for a specific field."""
-        field = get_object_or_404(Field, id=field_id, form__created_by=user)
-        return self.answer_repository.get_field_statistics(str(field.id))

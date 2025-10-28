@@ -1,9 +1,8 @@
-from rest_framework import viewsets, status, permissions, serializers
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from forms.models import (
@@ -28,10 +27,11 @@ from forms.serializers import (
     ResponseSerializer, ResponseCreateSerializer, ResponseListSerializer,
     AnswerSerializer, AnswerCreateSerializer, AnswerListSerializer
 )
-from forms.services.services import (
-    FieldService, FormService, ProcessService, ProcessStepService,
-    CategoryService, EntityCategoryService, ResponseService, AnswerService
-)
+from forms.services.services import FieldService
+from forms.services.form_service import FormService
+from forms.services.process_service import ProcessService, ProcessStepService
+from forms.services.category_service import CategoryService, EntityCategoryService
+from forms.services.response_service import ResponseService, AnswerService
 
 
 # =============================================================================
@@ -441,10 +441,9 @@ class PrivateFormViewSet(viewsets.GenericViewSet):
             ip_address = request.META.get('REMOTE_ADDR', '')
             user_agent = request.META.get('HTTP_USER_AGENT', '')
             self.form_service.track_form_view(form, ip_address, user_agent)
-            serializer = PublicFormSerializer(form)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({'detail': 'Access granted'}, status=status.HTTP_200_OK)
         except ValidationError as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 # =============================================================================
@@ -549,15 +548,6 @@ class ProcessViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'])
-    def process_types(self, request):
-        """Get available process types."""
-        process_types = [
-            {'value': choice[0], 'label': choice[1]} 
-            for choice in Process.PROCESS_TYPES
-        ]
-        return Response(process_types, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(
@@ -667,42 +657,6 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
         """Get all process steps for processes owned by the authenticated user."""
         return self.list(request)
 
-    @action(detail=True, methods=['post'])
-    def reorder(self, request, pk=None):
-        """Reorder a process step within its process."""
-        step = self.get_object()
-        
-        new_order = request.data.get('new_order')
-        if not new_order:
-            return Response(
-                {'detail': 'new_order is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            new_order = int(new_order)
-        except (ValueError, TypeError):
-            return Response(
-                {'detail': 'new_order must be a valid integer'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            updated_step = self.process_step_service.reorder_step(
-                user=request.user,
-                step_id=str(step.id),
-                new_order=new_order
-            )
-            
-            response_serializer = ProcessStepSerializer(updated_step)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-            
-        except ValidationError as e:
-            return Response(
-                {'detail': str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
 
 # =============================================================================
 # CATEGORY VIEWSETS
@@ -755,7 +709,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter categories by the authenticated user."""
-        return self.queryset.filter(created_by=self.request.user).order_by('created_at')
+        return self.queryset.filter(created_by=self.request.user).order_by('-created_at')
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -772,7 +726,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         try:
             self.category_service.create_category(self.request.user, serializer.validated_data)
         except ValidationError as e:
-            raise serializers.ValidationError({'detail': str(e)})
+            raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the category."""
@@ -783,10 +737,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         """Delete the category."""
-        try:
-            self.category_service.delete_category(self.request.user, str(instance.id))
-        except ValidationError as e:
-            raise serializers.ValidationError({'detail': str(e)})
+        self.category_service.delete_category(self.request.user, str(instance.id))
 
     @action(detail=False, methods=['get'])
     def my_categories(self, request):
@@ -847,8 +798,8 @@ class EntityCategoryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter entity categories by the authenticated user's entities."""
         return self.queryset.filter(
-            Q(entity_type='form', entity_id__in=Form.objects.filter(created_by=self.request.user).values_list('id', flat=True)) |
-            Q(entity_type='process', entity_id__in=Process.objects.filter(created_by=self.request.user).values_list('id', flat=True))
+            models.Q(entity_type='form', entity_id__in=Form.objects.filter(created_by=self.request.user).values_list('id', flat=True)) |
+            models.Q(entity_type='process', entity_id__in=Process.objects.filter(created_by=self.request.user).values_list('id', flat=True))
         ).order_by('-created_at')
 
     def get_serializer_class(self):
@@ -864,15 +815,11 @@ class EntityCategoryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new entity category."""
         try:
-            entity_type = serializer.validated_data.get('entity_type', 'form')
-            entity_id = serializer.validated_data.get('entity_id')
-            category_data = serializer.validated_data
-            
             self.entity_category_service.create_entity_category(
                 self.request.user, 
-                entity_type, 
-                entity_id, 
-                category_data
+                instance.entity_type, 
+                instance.entity_id, 
+                serializer.validated_data
             )
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
@@ -977,7 +924,7 @@ class ResponseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter responses by the authenticated user's forms."""
-        return self.queryset.filter(form__created_by=self.request.user).order_by('-submitted_at')
+        return self.queryset.filter(form__created_by=self.request.user).order_by('-created_at')
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -1000,7 +947,7 @@ class ResponseViewSet(viewsets.ModelViewSet):
                 submitted_by=self.request.user
             )
         except ValidationError as e:
-            raise serializers.ValidationError({'detail': str(e)})
+            raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the response."""
@@ -1095,7 +1042,7 @@ class AnswerViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter answers by the authenticated user's responses."""
-        return self.queryset.filter(response__form__created_by=self.request.user).order_by('-response__submitted_at')
+        return self.queryset.filter(response__form__created_by=self.request.user).order_by('-created_at')
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -1158,45 +1105,6 @@ class AnswerViewSet(viewsets.ModelViewSet):
     def my_answers(self, request):
         """Get all answers for responses owned by the authenticated user."""
         return self.list(request)
-
-    @action(detail=False, methods=['get'])
-    def by_field(self, request):
-        """Get all answers for a specific field."""
-        field_id = request.query_params.get('field_id')
-        if not field_id:
-            return Response(
-                {'detail': 'field_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            answers = self.answer_service.get_field_answers(
-                user=request.user,
-                field_id=field_id
-            )
-            serializer = AnswerListSerializer(answers, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'])
-    def field_statistics(self, request):
-        """Get statistics for a specific field."""
-        field_id = request.query_params.get('field_id')
-        if not field_id:
-            return Response(
-                {'detail': 'field_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            statistics = self.answer_service.get_field_statistics(
-                user=request.user,
-                field_id=field_id
-            )
-            return Response(statistics, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # =============================================================================
@@ -1270,7 +1178,7 @@ class ProcessWorkflowViewSet(viewsets.GenericViewSet):
             if not process:
                 raise Http404("Process not found")
 
-            if process.process_type != 'linear':
+            if process.process_type != Process.LINEAR:
                 return Response(
                     {'detail': 'This action is only for linear processes.'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1364,12 +1272,10 @@ class ProcessWorkflowViewSet(viewsets.GenericViewSet):
 
             return Response({
                 'process': ProcessSerializer(process).data,
-                'progress': {
-                    'total_steps': total_steps,
-                    'completed_steps': completed_steps,
-                    'progress_percentage': (completed_steps / total_steps * 100) if total_steps > 0 else 0,
-                    'is_complete': is_complete
-                }
+                'total_steps': total_steps,
+                'completed_steps': completed_steps,
+                'progress_percentage': (completed_steps / total_steps * 100) if total_steps > 0 else 0,
+                'is_complete': is_complete
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -1377,8 +1283,6 @@ class ProcessWorkflowViewSet(viewsets.GenericViewSet):
 
     def _is_step_completed(self, step):
         """Check if a process step has been completed."""
-        # For now, we'll use a simple check - any response to the form means the step is completed
-        # In a more complex system, you might want to track step-specific completion
         return FormResponse.objects.filter(form=step.form).exists()
 
     def _get_next_step(self, process, current_step):

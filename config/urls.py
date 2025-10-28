@@ -3,7 +3,13 @@ from django.urls import path, include
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(
+    summary="API Root",
+    description="Get API information and available endpoints",
+    tags=["API Information"]
+)
 class RootView(APIView):
     permission_classes = []
     authentication_classes = []

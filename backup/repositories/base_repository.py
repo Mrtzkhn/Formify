@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any
 from django.db import models
 
 
