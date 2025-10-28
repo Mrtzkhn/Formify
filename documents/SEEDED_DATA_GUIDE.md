@@ -114,7 +114,7 @@ python test_apis.py
 
 2. **List Forms**:
    ```bash
-   curl -X GET http://localhost:8000/api/v1/forms/forms/ \
+   curl -X GET http://localhost:8000/api/v1/forms/ \
      -H "Authorization: Bearer YOUR_TOKEN"
    ```
 
@@ -134,11 +134,11 @@ python test_apis.py
 - `POST /api/v1/accounts/token/refresh/` - Refresh JWT token
 
 ### Forms Management
-- `GET /api/v1/forms/forms/` - List user's forms
-- `POST /api/v1/forms/forms/` - Create new form
-- `GET /api/v1/forms/forms/{id}/` - Get form details
-- `PUT /api/v1/forms/forms/{id}/` - Update form
-- `DELETE /api/v1/forms/forms/{id}/` - Delete form
+- `GET /api/v1/forms/` - List user's forms
+- `POST /api/v1/forms/` - Create new form
+- `GET /api/v1/forms/{id}/` - Get form details
+- `PUT /api/v1/forms/{id}/` - Update form
+- `DELETE /api/v1/forms/{id}/` - Delete form
 
 ### Fields Management
 - `GET /api/v1/forms/fields/` - List user's fields

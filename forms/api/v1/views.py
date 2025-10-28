@@ -491,6 +491,11 @@ class PrivateFormViewSet(viewsets.GenericViewSet):
         summary="List Public Processes",
         description="Get all public processes",
         tags=["Processes"]
+    ),
+    process_types=extend_schema(
+        summary="Get Process Types",
+        description="List available process types (linear, free).",
+        tags=["Processes"]
     )
 )
 class ProcessViewSet(viewsets.ModelViewSet):
@@ -599,6 +604,11 @@ class ProcessViewSet(viewsets.ModelViewSet):
     my_steps=extend_schema(
         summary="List My Process Steps",
         description="Get all process steps for processes owned by the authenticated user",
+        tags=["Process Steps"]
+    ),
+    reorder=extend_schema(
+        summary="Reorder Process Step",
+        description="Change the order of a process step within its process.",
         tags=["Process Steps"]
     )
 )
@@ -1083,6 +1093,16 @@ class ResponseViewSet(viewsets.ModelViewSet):
         summary="List My Answers",
         description="Get all answers for responses owned by the authenticated user",
         tags=["Form Answers"]
+    ),
+    by_field=extend_schema(
+        summary="Get Answers by Field",
+        description="Get all answers submitted for a specific field.",
+        tags=["Form Answers"]
+    ),
+    field_statistics=extend_schema(
+        summary="Get Field Statistics",
+        description="Get aggregated statistics for a specific field (counts, common values, timeline).",
+        tags=["Form Answers"]
     )
 )
 class AnswerViewSet(viewsets.ModelViewSet):
@@ -1331,6 +1351,7 @@ class ProcessWorkflowViewSet(viewsets.GenericViewSet):
             ip_address = request.META.get('REMOTE_ADDR', '')
             user_agent = request.META.get('HTTP_USER_AGENT', '')
 
+            # Enforce required fields at submission time; ResponseService already validates
             response = self.response_service.submit_response(
                 form_id=str(step.form.id),
                 answers_data=answers_data,

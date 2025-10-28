@@ -49,8 +49,10 @@ class Form(models.Model):
 
 class FormView(models.Model):
     form = models.ForeignKey(Form, on_delete=models.CASCADE)
-    ip_address = models.GenericIPAddressField()
-    user_agent = models.TextField()
+    # ERD: add nullable user reference, ip address optional string
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    ip_address = models.CharField(max_length=255, blank=True, null=True)
+    user_agent = models.TextField(blank=True)
     viewed_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -193,7 +195,6 @@ class ProcessStep(models.Model):
     step_name = models.CharField(max_length=255, verbose_name='step name')
     step_description = models.TextField(blank=True, verbose_name='step description')
     order_num = models.PositiveIntegerField(default=0, verbose_name='order number')
-    is_required = models.BooleanField(default=True, verbose_name='required')
     is_mandatory = models.BooleanField(default=True, verbose_name='mandatory')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -257,3 +258,42 @@ class Answer(models.Model):
     
     def __str__(self):
         return f"Answer for {self.field.label}: {self.value[:50]}..."
+
+
+class Report(models.Model):
+    """Reporting configuration per ERD."""
+    REPORT_TYPES = [
+        ('summary', 'Summary'),
+        ('realtime', 'Realtime'),
+        ('api', 'API'),
+    ]
+    SCHEDULE_TYPES = [
+        ('manual', 'Manual'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ]
+
+    DELIVERY_METHODS = [
+        ('email', 'Email'),
+        ('api', 'API'),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name='reports')
+    type = models.CharField(max_length=20, choices=REPORT_TYPES)
+    data_config = models.JSONField(default=dict, blank=True)
+    schedule_type = models.CharField(max_length=20, choices=SCHEDULE_TYPES, default='manual')
+    delivery_method = models.CharField(max_length=20, choices=DELIVERY_METHODS, default='email')
+    target_endpoint = models.CharField(max_length=512, blank=True, null=True)
+    next_run = models.DateTimeField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'report'
+        verbose_name_plural = 'reports'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Report({self.type}) for {self.form.title}"

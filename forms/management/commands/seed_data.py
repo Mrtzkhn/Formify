@@ -325,7 +325,6 @@ class Command(BaseCommand):
                     'step_description': 'Complete account registration and verification',
                     'form': forms[0],  # Customer Feedback Form
                     'order_num': 1,
-                    'is_required': True,
                     'is_mandatory': True
                 },
                 {
@@ -333,7 +332,6 @@ class Command(BaseCommand):
                     'step_description': 'Fill out detailed profile information',
                     'form': forms[2],  # Product Research Form
                     'order_num': 2,
-                    'is_required': True,
                     'is_mandatory': True
                 }
             ]
@@ -410,7 +408,6 @@ class Command(BaseCommand):
                     'step_description': 'Employee self-evaluation form',
                     'form': forms[1],  # Employee Survey (created by users[1])
                     'order_num': 1,
-                    'is_required': True,
                     'is_mandatory': True
                 },
                 {
@@ -418,7 +415,6 @@ class Command(BaseCommand):
                     'step_description': 'Detailed self-assessment form',
                     'form': eval_form,  # New form created by same user
                     'order_num': 2,
-                    'is_required': True,
                     'is_mandatory': False
                 }
             ]

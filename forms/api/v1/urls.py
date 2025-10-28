@@ -11,13 +11,13 @@ app_name = 'forms_api_v1'
 # Create router for API v1
 router = DefaultRouter()
 router.register(r'fields', FieldViewSet, basename='field')
-router.register(r'forms', FormViewSet, basename='form')
 router.register(r'processes', ProcessViewSet, basename='process')
 router.register(r'process-steps', ProcessStepViewSet, basename='process-step')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'entity-categories', EntityCategoryViewSet, basename='entity-category')
 router.register(r'responses', ResponseViewSet, basename='response')
 router.register(r'answers', AnswerViewSet, basename='answer')
+router.register(r'', FormViewSet, basename='form')
 
 urlpatterns = [
     path('', include(router.urls)),

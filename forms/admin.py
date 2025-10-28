@@ -17,7 +17,7 @@ class FieldInline(admin.TabularInline):
 class ProcessStepInline(admin.TabularInline):
     model = ProcessStep
     extra = 1
-    fields = ('step_name', 'form', 'order_num', 'is_required', 'is_mandatory')
+    fields = ('step_name', 'form', 'order_num', 'is_mandatory')
     ordering = ('order_num',)
 
 
@@ -136,8 +136,8 @@ class ProcessAdmin(admin.ModelAdmin):
 
 @admin.register(ProcessStep)
 class ProcessStepAdmin(admin.ModelAdmin):
-    list_display = ('step_name', 'process', 'form', 'order_num', 'is_required', 'is_mandatory', 'created_at')
-    list_filter = ('is_required', 'is_mandatory', 'created_at', 'process__created_by')
+    list_display = ('step_name', 'process', 'form', 'order_num', 'is_mandatory', 'created_at')
+    list_filter = ('is_mandatory', 'created_at', 'process__created_by')
     search_fields = ('step_name', 'process__title', 'form__title')
     readonly_fields = ('id', 'created_at', 'updated_at')
     fieldsets = (
@@ -145,7 +145,7 @@ class ProcessStepAdmin(admin.ModelAdmin):
             'fields': ('id', 'process', 'form', 'step_name', 'step_description', 'order_num')
         }),
         ('Step Settings', {
-            'fields': ('is_required', 'is_mandatory')
+            'fields': ('is_mandatory',)
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

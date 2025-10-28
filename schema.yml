@@ -158,6 +158,163 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/v1/forms/:
+    get:
+      operationId: api_v1_forms_list
+      description: Get all forms owned by the authenticated user
+      summary: List Forms
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FormList'
+          description: ''
+    post:
+      operationId: api_v1_forms_create
+      description: Create a new form
+      summary: Create Form
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormCreate'
+          description: ''
+  /api/v1/forms/{id}/:
+    get:
+      operationId: api_v1_forms_retrieve
+      description: Get a specific form by ID
+      summary: Get Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+          description: ''
+    put:
+      operationId: api_v1_forms_update
+      description: Update an existing form
+      summary: Update Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormUpdate'
+          description: ''
+    patch:
+      operationId: api_v1_forms_partial_update
+      description: Partially update an existing form
+      summary: Partial Update Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFormUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormUpdate'
+          description: ''
+    delete:
+      operationId: api_v1_forms_destroy
+      description: Delete a form
+      summary: Delete Form
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this form.
+        required: true
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/forms/answers/:
     get:
       operationId: api_v1_forms_answers_list
@@ -318,9 +475,10 @@ paths:
   /api/v1/forms/answers/by_field/:
     get:
       operationId: api_v1_forms_answers_by_field_retrieve
-      description: Get all answers for a specific field.
+      description: Get all answers submitted for a specific field.
+      summary: Get Answers by Field
       tags:
-      - api
+      - Form Answers
       security:
       - jwtAuth: []
       responses:
@@ -349,9 +507,11 @@ paths:
   /api/v1/forms/answers/field_statistics/:
     get:
       operationId: api_v1_forms_answers_field_statistics_retrieve
-      description: Get statistics for a specific field.
+      description: Get aggregated statistics for a specific field (counts, common
+        values, timeline).
+      summary: Get Field Statistics
       tags:
-      - api
+      - Form Answers
       security:
       - jwtAuth: []
       responses:
@@ -974,185 +1134,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Field'
           description: ''
-  /api/v1/forms/forms/:
+  /api/v1/forms/my_forms/:
     get:
-      operationId: api_v1_forms_forms_list
-      description: Get all forms owned by the authenticated user
-      summary: List Forms
-      tags:
-      - Forms
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FormList'
-          description: ''
-    post:
-      operationId: api_v1_forms_forms_create
-      description: Create a new form
-      summary: Create Form
-      tags:
-      - Forms
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FormCreate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FormCreate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FormCreate'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormCreate'
-          description: ''
-  /api/v1/forms/forms/{id}/:
-    get:
-      operationId: api_v1_forms_forms_retrieve
-      description: Get a specific form by ID
-      summary: Get Form
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this form.
-        required: true
-      tags:
-      - Forms
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Form'
-          description: ''
-    put:
-      operationId: api_v1_forms_forms_update
-      description: Update an existing form
-      summary: Update Form
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this form.
-        required: true
-      tags:
-      - Forms
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FormUpdate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FormUpdate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FormUpdate'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormUpdate'
-          description: ''
-    patch:
-      operationId: api_v1_forms_forms_partial_update
-      description: Partially update an existing form
-      summary: Partial Update Form
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this form.
-        required: true
-      tags:
-      - Forms
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedFormUpdate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedFormUpdate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedFormUpdate'
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormUpdate'
-          description: ''
-    delete:
-      operationId: api_v1_forms_forms_destroy
-      description: Delete a form
-      summary: Delete Form
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this form.
-        required: true
-      tags:
-      - Forms
-      security:
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/v1/forms/forms/my_forms/:
-    get:
-      operationId: api_v1_forms_forms_my_forms_retrieve
+      operationId: api_v1_forms_my_forms_retrieve
       description: Get all forms created by the authenticated user
       summary: List My Forms
-      tags:
-      - Forms
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Form'
-          description: ''
-  /api/v1/forms/forms/public_forms/:
-    get:
-      operationId: api_v1_forms_forms_public_forms_retrieve
-      description: Get a list of all public forms. Use /api/v1/forms/public/forms/
-        instead.
-      summary: List Public Forms (Deprecated)
       tags:
       - Forms
       security:
@@ -1360,7 +1346,8 @@ paths:
   /api/v1/forms/process-steps/{id}/reorder/:
     post:
       operationId: api_v1_forms_process_steps_reorder_create
-      description: Reorder a process step within its process.
+      description: Change the order of a process step within its process.
+      summary: Reorder Process Step
       parameters:
       - in: path
         name: id
@@ -1370,7 +1357,7 @@ paths:
         description: A UUID string identifying this process step.
         required: true
       tags:
-      - api
+      - Process Steps
       requestBody:
         content:
           application/json:
@@ -1601,9 +1588,10 @@ paths:
   /api/v1/forms/processes/process_types/:
     get:
       operationId: api_v1_forms_processes_process_types_retrieve
-      description: Get available process types.
+      description: List available process types (linear, free).
+      summary: Get Process Types
       tags:
-      - api
+      - Processes
       security:
       - jwtAuth: []
       responses:
@@ -1707,6 +1695,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseCreate'
+          description: ''
+  /api/v1/forms/public_forms/:
+    get:
+      operationId: api_v1_forms_public_forms_retrieve_2
+      description: Get a list of all public forms. Use /api/v1/forms/public/forms/
+        instead.
+      summary: List Public Forms (Deprecated)
+      tags:
+      - Forms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
           description: ''
   /api/v1/forms/responses/:
     get:
@@ -2618,9 +2623,6 @@ components:
           minimum: 0
           format: int64
           title: Order number
-        is_required:
-          type: boolean
-          title: Required
         is_mandatory:
           type: boolean
           title: Mandatory
@@ -2827,9 +2829,6 @@ components:
           format: int64
           default: 0
           title: Order number
-        is_required:
-          type: boolean
-          title: Required
         is_mandatory:
           type: boolean
           title: Mandatory
@@ -2872,9 +2871,6 @@ components:
           format: int64
           default: 0
           title: Order number
-        is_required:
-          type: boolean
-          title: Required
         is_mandatory:
           type: boolean
           title: Mandatory
@@ -2905,9 +2901,6 @@ components:
           minimum: 0
           format: int64
           title: Order number
-        is_required:
-          type: boolean
-          title: Required
         is_mandatory:
           type: boolean
           title: Mandatory
@@ -2931,9 +2924,6 @@ components:
           minimum: 0
           format: int64
           title: Order number
-        is_required:
-          type: boolean
-          title: Required
         is_mandatory:
           type: boolean
           title: Mandatory

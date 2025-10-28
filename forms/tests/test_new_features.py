@@ -19,7 +19,7 @@ class FormManagementAPITestCase(APITestCase):
         self.client.force_authenticate(user=self.user)
         
         # API URLs
-        self.forms_url = '/api/v1/forms/forms/'
+        self.forms_url = '/api/v1/forms/'
         self.public_forms_url = '/api/v1/forms/public/forms/'
         self.private_forms_url = '/api/v1/forms/private/forms/validate/'
 
@@ -189,7 +189,6 @@ class ProcessWorkflowAPITestCase(APITestCase):
             step_name='Step 1',
             step_description='First step',
             order_num=1,
-            is_required=True,
             is_mandatory=True
         )
         

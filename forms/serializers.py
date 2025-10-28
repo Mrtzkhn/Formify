@@ -47,7 +47,7 @@ class FormUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Form
         fields = ['title', 'description', 'is_public', 'access_password', 'is_active']
-    
+
     def validate_access_password(self, value):
         """Validate access password for private forms."""
         is_public = self.initial_data.get('is_public', True)
@@ -306,7 +306,7 @@ class ProcessStepSerializer(serializers.ModelSerializer):
         model = ProcessStep
         fields = [
             'id', 'process', 'form', 'form_title', 'form_description',
-            'step_name', 'step_description', 'order_num', 'is_required', 'is_mandatory',
+            'step_name', 'step_description', 'order_num', 'is_mandatory',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -318,7 +318,7 @@ class ProcessStepCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessStep
         fields = [
-            'process', 'form', 'step_name', 'step_description', 'order_num', 'is_required', 'is_mandatory'
+            'process', 'form', 'step_name', 'step_description', 'order_num', 'is_mandatory'
         ]
     
     def validate_form(self, value):
@@ -346,7 +346,7 @@ class ProcessStepUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessStep
         fields = [
-            'step_name', 'step_description', 'order_num', 'is_required', 'is_mandatory'
+            'step_name', 'step_description', 'order_num', 'is_mandatory'
         ]
     
     def validate_order_num(self, value):
@@ -363,7 +363,7 @@ class ProcessStepListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessStep
         fields = [
-            'id', 'form', 'form_title', 'step_name', 'order_num', 'is_required', 'is_mandatory'
+            'id', 'form', 'form_title', 'step_name', 'order_num', 'is_mandatory'
         ]
 
 
