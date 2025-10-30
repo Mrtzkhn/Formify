@@ -1,0 +1,46 @@
+# Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env
+.env.*
+!*.env.example
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Django and build artifacts
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static_root/
+build/
+dist/
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Logs
+*.log
+logs/
