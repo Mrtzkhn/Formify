@@ -1,9 +1,16 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.response import Response
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(
+    summary="API Root",
+    description="Get API information and available endpoints",
+    tags=["API Information"]
+)
 class RootView(APIView):
     permission_classes = []
     authentication_classes = []
@@ -15,6 +22,7 @@ class RootView(APIView):
             "versions": {"accounts": ["v1"], "forms": ["v1"]}
             }
         )
+    
 
 urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

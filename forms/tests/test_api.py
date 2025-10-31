@@ -1,6 +1,4 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -133,7 +131,8 @@ class FieldAPITestCase(APITestCase):
         Field.objects.create(
             form=self.form,
             label='Field 2',
-            field_type='email',
+            field_type='select',
+            options={'choices': [{'value': 'option1', 'label': 'Option 1'}, {'value': 'option2', 'label': 'Option 2'}]},
             order_num=2
         )
         
@@ -230,7 +229,8 @@ class FieldAPITestCase(APITestCase):
         Field.objects.create(
             form=self.form,
             label='Field 2',
-            field_type='email',
+            field_type='select',
+            options={'choices': [{'value': 'option1', 'label': 'Option 1'}, {'value': 'option2', 'label': 'Option 2'}]},
             order_num=2
         )
         
@@ -322,7 +322,7 @@ class FieldAPITestCase(APITestCase):
         field_type_values = [ft['value'] for ft in response.data]
         self.assertIn('text', field_type_values)
         self.assertIn('select', field_type_values)
-        self.assertIn('rating', field_type_values)
+        self.assertIn('checkbox', field_type_values)
     
     def test_my_fields_action(self):
         """Test the my_fields custom action."""
@@ -336,7 +336,8 @@ class FieldAPITestCase(APITestCase):
         Field.objects.create(
             form=self.form,
             label='Field 2',
-            field_type='email',
+            field_type='select',
+            options={'choices': [{'value': 'option1', 'label': 'Option 1'}, {'value': 'option2', 'label': 'Option 2'}]},
             order_num=2
         )
         

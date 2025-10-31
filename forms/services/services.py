@@ -1,9 +1,20 @@
-from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-from forms.models import Field, Form
-from forms.repositories.field_repository import FieldRepository
+from django.db import transaction
+from forms.models import (
+    Field, Form, Process, ProcessStep, Category, EntityCategory, 
+    Response as FormResponse, Answer, FormView
+)
+from forms.repositories.repositories import (
+    FieldRepository, FormRepository, ProcessRepository, ProcessStepRepository,
+    CategoryRepository, EntityCategoryRepository, ResponseRepository, AnswerRepository
+)
 from typing import Dict, List, Any
 
+
+# =============================================================================
+# FIELD SERVICE
+# =============================================================================
 
 class FieldService:
     """Service layer for field operations with business logic."""
@@ -12,30 +23,13 @@ class FieldService:
         self.field_repository = FieldRepository()
     
     def create_field(self, user, form_id: str, field_data: Dict[str, Any]) -> Field:
-        """
-        Create a new field for a form.
-        
-        Args:
-            user: The authenticated user
-            form_id: UUID of the form
-            field_data: Dictionary containing field data
-            
-        Returns:
-            Field: The created field instance
-            
-        Raises:
-            PermissionDenied: If user doesn't own the form
-            ValidationError: If field data is invalid
-        """
-        # Verify user owns the form
+        """Create a new field for a form."""
         form = get_object_or_404(Form, id=form_id, created_by=user)
         
-        # Set default order number if not provided
         if 'order_num' not in field_data:
             max_order = self.field_repository.get_max_order_for_form(str(form.id))
             field_data['order_num'] = max_order + 1
         
-        # Validate field options
         field_type = field_data.get('field_type')
         if field_type:
             self.validate_field_options(
@@ -43,7 +37,6 @@ class FieldService:
                 field_data.get('options', {})
             )
         
-        # Create the field
         field = self.field_repository.create(
             form=form,
             **field_data
@@ -52,105 +45,43 @@ class FieldService:
         return field
     
     def get_user_fields(self, user) -> List[Field]:
-        """
-        Get all fields for user's forms.
-        
-        Args:
-            user: The authenticated user
-            
-        Returns:
-            List[Field]: List of fields belonging to user's forms
-        """
+        """Get all fields for user's forms."""
         return self.field_repository.get_by_user(str(user.id))
     
     def get_form_fields(self, user, form_id: str) -> List[Field]:
-        """
-        Get all fields for a specific form.
-        
-        Args:
-            user: The authenticated user
-            form_id: UUID of the form
-            
-        Returns:
-            List[Field]: List of fields for the form
-            
-        Raises:
-            PermissionDenied: If user doesn't own the form
-        """
+        """Get all fields for a specific form."""
         form = get_object_or_404(Form, id=form_id, created_by=user)
         return self.field_repository.get_by_form(str(form.id))
     
+    def get_field(self, user, field_id: str) -> Field:
+        """Get a specific field."""
+        return get_object_or_404(Field, id=field_id, form__created_by=user)
+    
     def update_field(self, user, field_id: str, field_data: Dict[str, Any]) -> Field:
-        """
-        Update an existing field.
-        
-        Args:
-            user: The authenticated user
-            field_id: UUID of the field
-            field_data: Dictionary containing updated field data
-            
-        Returns:
-            Field: The updated field instance
-            
-        Raises:
-            PermissionDenied: If user doesn't own the field
-            ValidationError: If field data is invalid
-        """
+        """Update an existing field."""
         field = get_object_or_404(Field, id=field_id, form__created_by=user)
         
-        # Validate field options if field_type or options are being updated
         if 'field_type' in field_data or 'options' in field_data:
             field_type = field_data.get('field_type', field.field_type)
             options = field_data.get('options', field.options)
             self.validate_field_options(field_type, options)
         
-        # Update the field using repository
         return self.field_repository.update(field, **field_data)
     
     def delete_field(self, user, field_id: str) -> bool:
-        """
-        Delete a field.
-        
-        Args:
-            user: The authenticated user
-            field_id: UUID of the field
-            
-        Returns:
-            bool: True if field was deleted
-            
-        Raises:
-            PermissionDenied: If user doesn't own the field
-        """
+        """Delete a field."""
         field = get_object_or_404(Field, id=field_id, form__created_by=user)
         
-        # Store the order number before deletion
         deleted_order = field.order_num
         form_id = str(field.form.id)
         
-        # Delete the field
         self.field_repository.delete(field)
-        
-        # Reorder remaining fields using repository
         self.field_repository.reorder_fields_after_delete(form_id, deleted_order)
         
         return True
     
     def reorder_field(self, user, field_id: str, new_order: int) -> Field:
-        """
-        Reorder a field within its form.
-        
-        Args:
-            user: The authenticated user
-            field_id: UUID of the field
-            new_order: New order number for the field
-            
-        Returns:
-            Field: The updated field instance
-            
-        Raises:
-            PermissionDenied: If user doesn't own the field
-            ValidationError: If new_order is invalid
-        """
+        """Reorder a field within its form."""
         field = get_object_or_404(Field, id=field_id, form__created_by=user)
         
         if new_order < 1:
@@ -165,7 +96,6 @@ class FieldService:
         if new_order == old_order:
             return field
         
-        # Use repository to handle reordering
         self.field_repository.reorder_fields_for_move(
             str(field.form.id), 
             old_order, 
@@ -173,88 +103,509 @@ class FieldService:
             str(field.id)
         )
         
-        # Refresh and return the field
         field.refresh_from_db()
         return field
     
     def validate_field_options(self, field_type: str, options: Dict[str, Any]) -> bool:
-        """
-        Validate field options based on field type.
-        
-        Args:
-            field_type: Type of the field
-            options: Dictionary containing field options
-            
-        Returns:
-            bool: True if options are valid
-            
-        Raises:
-            ValidationError: If options are invalid for the field type
-        """
-        if field_type in ['select', 'radio', 'checkbox', 'multiselect']:
+        """Validate field options based on field type."""
+        if field_type in ['select', 'checkbox']:
             choices = options.get('choices', [])
             if not choices:
                 raise ValidationError(f"Field type '{field_type}' requires choices in options.")
             
-            # Validate choices format
             for choice in choices:
                 if not isinstance(choice, dict) or 'value' not in choice or 'label' not in choice:
                     raise ValidationError("Each choice must have 'value' and 'label' keys.")
         
-        elif field_type == 'rating':
-            min_val = options.get('min_value', 1)
-            max_val = options.get('max_value', 5)
-            step = options.get('step', 1)
-            
-            if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
-                raise ValidationError("Rating min_value and max_value must be numbers.")
-            
-            if min_val >= max_val:
-                raise ValidationError("Rating min_value must be less than max_value.")
-            
-            if step <= 0:
-                raise ValidationError("Rating step must be greater than 0.")
-        
-        elif field_type == 'file':
-            allowed_types = options.get('allowed_types', [])
-            max_size = options.get('max_size')
-            
-            if not allowed_types:
-                raise ValidationError("File field requires allowed_types in options.")
-            
-            if not isinstance(allowed_types, list):
-                raise ValidationError("allowed_types must be a list.")
-            
-            if max_size is not None and (not isinstance(max_size, (int, float)) or max_size <= 0):
-                raise ValidationError("max_size must be a positive number.")
-        
-        elif field_type == 'number':
-            min_val = options.get('min_value')
-            max_val = options.get('max_value')
-            step = options.get('step')
-            
-            if min_val is not None and not isinstance(min_val, (int, float)):
-                raise ValidationError("Number min_value must be a number.")
-            
-            if max_val is not None and not isinstance(max_val, (int, float)):
-                raise ValidationError("Number max_value must be a number.")
-            
-            if min_val is not None and max_val is not None and min_val >= max_val:
-                raise ValidationError("Number min_value must be less than max_value.")
-            
-            if step is not None and (not isinstance(step, (int, float)) or step <= 0):
-                raise ValidationError("Number step must be a positive number.")
-        
         return True
     
     def get_field_types(self) -> List[Dict[str, str]]:
-        """
-        Get available field types with their display names.
-        
-        Returns:
-            List[Dict[str, str]]: List of field types with value and label
-        """
+        """Get available field types with their display names."""
         return [
             {'value': choice[0], 'label': choice[1]} 
             for choice in Field.FIELD_TYPES
         ]
+
+
+# =============================================================================
+# FORM SERVICE
+# =============================================================================
+
+class FormService:
+    """Service layer for form operations with business logic."""
+    
+    def __init__(self):
+        self.form_repository = FormRepository()
+    
+    def create_form(self, user, form_data: Dict[str, Any]) -> Form:
+        """Create a new form."""
+        is_public = form_data.get('is_public', True)
+        access_password = form_data.get('access_password')
+
+        if not is_public and not access_password:
+            raise ValidationError("Private forms require an access password.")
+
+        return self.form_repository.create(created_by=user, **form_data)
+
+    def get_user_forms(self, user) -> List[Form]:
+        """Get all forms for a specific user."""
+        return self.form_repository.get_by_user(str(user.id))
+
+    def get_form(self, user, form_id: str) -> Form:
+        """Get a specific form for a user."""
+        return get_object_or_404(Form, id=form_id, created_by=user)
+
+    def update_form(self, user, form_id: str, form_data: Dict[str, Any]) -> Form:
+        """Update an existing form."""
+        form = get_object_or_404(Form, id=form_id, created_by=user)
+
+        is_public = form_data.get('is_public', form.is_public)
+        access_password = form_data.get('access_password', form.access_password)
+
+        if not is_public and not access_password:
+            raise ValidationError("Private forms require an access password.")
+
+        return self.form_repository.update(form, **form_data)
+
+    def delete_form(self, user, form_id: str) -> bool:
+        """Delete a form."""
+        form = get_object_or_404(Form, id=form_id, created_by=user)
+        return self.form_repository.delete(form)
+
+    def get_public_forms(self) -> List[Form]:
+        """Get all public forms."""
+        return self.form_repository.get_public_forms()
+
+    def get_public_form(self, form_id: str) -> Form:
+        """Get a public form by ID."""
+        return self.form_repository.get_public_form_by_id(form_id)
+
+    def validate_form_access(self, form_id: str, password: str = None) -> Form:
+        """Validate access to a form (public or with password)."""
+        try:
+            form = Form.objects.get(id=form_id, is_active=True)
+        except Form.DoesNotExist:
+            raise ValidationError("Form not found or inactive.")
+
+        if form.is_public:
+            return form
+
+        if not password:
+            raise ValidationError("This form requires a password.")
+
+        if not self.form_repository.validate_password(form_id, password):
+            raise ValidationError("Invalid password.")
+
+        return form
+
+    def track_form_view(self, form: Form, ip_address: str, user_agent: str) -> FormView:
+        """Track a form view."""
+        return self.form_repository.track_view(form, ip_address, user_agent)
+
+
+# =============================================================================
+# PROCESS SERVICE
+# =============================================================================
+
+class ProcessService:
+    """Service layer for process operations with business logic."""
+    
+    def __init__(self):
+        self.process_repository = ProcessRepository()
+        self.process_step_repository = ProcessStepRepository()
+    
+    def create_process(self, user, process_data: Dict[str, Any]) -> Process:
+        """Create a new process."""
+        is_public = process_data.get('is_public', True)
+        access_password = process_data.get('access_password')
+
+        if not is_public and not access_password:
+            raise ValidationError("Private processes require an access password.")
+
+        return self.process_repository.create(created_by=user, **process_data)
+
+    def get_user_processes(self, user) -> List[Process]:
+        """Get all processes for a specific user."""
+        return self.process_repository.get_by_user(str(user.id))
+
+    def get_process(self, user, process_id: str) -> Process:
+        """Get a specific process for a user."""
+        return get_object_or_404(Process, id=process_id, created_by=user)
+
+    def update_process(self, user, process_id: str, process_data: Dict[str, Any]) -> Process:
+        """Update an existing process."""
+        process = get_object_or_404(Process, id=process_id, created_by=user)
+
+        is_public = process_data.get('is_public', process.is_public)
+        access_password = process_data.get('access_password', process.access_password)
+
+        if not is_public and not access_password:
+            raise ValidationError("Private processes require an access password.")
+
+        return self.process_repository.update(process, **process_data)
+
+    def delete_process(self, user, process_id: str) -> bool:
+        """Delete a process."""
+        process = get_object_or_404(Process, id=process_id, created_by=user)
+        return self.process_repository.delete(process)
+
+    def get_public_processes(self) -> List[Process]:
+        """Get all public processes."""
+        return self.process_repository.get_public_processes()
+
+    def get_process_by_id(self, process_id: str) -> Process:
+        """Get a process by ID (for public access)."""
+        try:
+            return Process.objects.get(id=process_id, is_active=True)
+        except Process.DoesNotExist:
+            return None
+
+    def validate_process_access(self, process_id: str, password: str = None) -> Process:
+        """Validate access to a process (public or with password)."""
+        try:
+            process = Process.objects.get(id=process_id, is_active=True)
+        except Process.DoesNotExist:
+            raise ValidationError("Process not found or inactive.")
+
+        if process.is_public:
+            return process
+
+        if not password:
+            raise ValidationError("This process requires a password.")
+
+        if not self.process_repository.validate_password(process_id, password):
+            raise ValidationError("Invalid password.")
+
+        return process
+
+
+class ProcessStepService:
+    """Service layer for process step operations with business logic."""
+
+    def __init__(self):
+        self.process_repository = ProcessRepository()
+        self.process_step_repository = ProcessStepRepository()
+
+    def create_process_step(self, user, step_data: Dict[str, Any]) -> ProcessStep:
+        """Create a new process step."""
+        process_id = step_data['process'].id
+        form_id = step_data['form'].id
+
+        # Verify user owns the process
+        process = get_object_or_404(Process, id=process_id, created_by=user)
+        
+        # Verify user owns the form
+        form = get_object_or_404(Form, id=form_id, created_by=user)
+
+        # Set default order number if not provided
+        if 'order_num' not in step_data:
+            max_order = self.process_step_repository.get_max_order_for_process(str(process.id))
+            step_data['order_num'] = max_order + 1
+
+        return self.process_step_repository.create(
+            process=process,
+            form=form,
+            step_name=step_data.get('step_name', ''),
+            order_num=step_data.get('order_num', 1),
+            is_mandatory=step_data.get('is_mandatory', True)
+        )
+
+    def get_user_process_steps(self, user) -> List[ProcessStep]:
+        """Get all process steps for user's processes."""
+        return self.process_step_repository.get_by_user(str(user.id))
+
+    def get_process_steps(self, user, process_id: str) -> List[ProcessStep]:
+        """Get all steps for a specific process."""
+        process = get_object_or_404(Process, id=process_id, created_by=user)
+        return self.process_step_repository.get_by_process(str(process.id))
+
+    def get_process_step(self, user, step_id: str) -> ProcessStep:
+        """Get a specific process step."""
+        return get_object_or_404(ProcessStep, id=step_id, process__created_by=user)
+
+    def update_process_step(self, user, step_id: str, step_data: Dict[str, Any]) -> ProcessStep:
+        """Update an existing process step."""
+        step = get_object_or_404(ProcessStep, id=step_id, process__created_by=user)
+        return self.process_step_repository.update(step, **step_data)
+
+    def delete_process_step(self, user, step_id: str) -> bool:
+        """Delete a process step."""
+        step = get_object_or_404(ProcessStep, id=step_id, process__created_by=user)
+        
+        deleted_order = step.order_num
+        process_id = str(step.process.id)
+        
+        self.process_step_repository.delete(step)
+        self.process_step_repository.reorder_steps_after_delete(process_id, deleted_order)
+        
+        return True
+
+    def get_process_steps_public(self, process_id: str) -> List[ProcessStep]:
+        """Get all steps for a specific process (for public access)."""
+        return self.process_step_repository.get_by_process(process_id)
+
+    def get_process_step_by_id(self, step_id: str) -> ProcessStep:
+        """Get a process step by ID (for public access)."""
+        return self.process_step_repository.get_by_id(step_id)
+
+    def reorder_step(self, user, step_id: str, new_order: int) -> ProcessStep:
+        """Reorder a process step within its process."""
+        step = get_object_or_404(ProcessStep, id=step_id, process__created_by=user)
+        
+        if new_order < 1:
+            raise ValidationError("Order number must be at least 1.")
+        
+        max_order = self.process_step_repository.get_step_count_for_process(str(step.process.id))
+        if new_order > max_order:
+            raise ValidationError(f"Order number cannot exceed {max_order}.")
+        
+        old_order = step.order_num
+        
+        if new_order == old_order:
+            return step
+        
+        self.process_step_repository.reorder_steps_for_move(
+            str(step.process.id), 
+            old_order, 
+            new_order, 
+            str(step.id)
+        )
+        
+        step.refresh_from_db()
+        return step
+
+
+# =============================================================================
+# CATEGORY SERVICE
+# =============================================================================
+
+class CategoryService:
+    """Service layer for category operations with business logic."""
+    
+    def __init__(self):
+        self.category_repository = CategoryRepository()
+        self.entity_category_repository = EntityCategoryRepository()
+    
+    def create_category(self, user, category_data: Dict[str, Any]) -> Category:
+        """Create a new category."""
+        # Check if category with same name already exists for this user
+        if self.category_repository.exists_by_name(category_data['name'], str(user.id)):
+            raise ValidationError("A category with this name already exists.")
+        
+        return self.category_repository.create(created_by=user, **category_data)
+
+    def get_user_categories(self, user) -> List[Category]:
+        """Get all categories for a specific user."""
+        return self.category_repository.get_by_user(str(user.id))
+
+    def get_category(self, user, category_id: str) -> Category:
+        """Get a specific category for a user."""
+        return get_object_or_404(Category, id=category_id, created_by=user)
+
+    def update_category(self, user, category_id: str, category_data: Dict[str, Any]) -> Category:
+        """Update an existing category."""
+        category = get_object_or_404(Category, id=category_id, created_by=user)
+        return self.category_repository.update(category, **category_data)
+
+    def delete_category(self, user, category_id: str) -> bool:
+        """Delete a category."""
+        category = get_object_or_404(Category, id=category_id, created_by=user)
+        
+        # Check if category has associated entities
+        if self.entity_category_repository.exists_by_category(str(category.id)):
+            raise ValidationError("Cannot delete category with associated entities.")
+        
+        return self.category_repository.delete(category)
+
+
+class EntityCategoryService:
+    """Service layer for entity category operations with business logic."""
+    
+    def __init__(self):
+        self.entity_category_repository = EntityCategoryRepository()
+    
+    def create_entity_category(self, user, entity_type: str, entity_id: str, category_data: Dict[str, Any]) -> EntityCategory:
+        """Create a new entity category association."""
+        # Verify user owns the entity
+        if entity_type == 'form':
+            entity = get_object_or_404(Form, id=entity_id, created_by=user)
+        elif entity_type == 'process':
+            entity = get_object_or_404(Process, id=entity_id, created_by=user)
+        else:
+            raise ValidationError("Invalid entity type. Must be 'form' or 'process'.")
+
+        # Verify user owns the category
+        category = get_object_or_404(Category, id=category_data['category'].id, created_by=user)
+
+        return self.entity_category_repository.create(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            category=category
+        )
+
+    def get_user_entity_categories(self, user) -> List[EntityCategory]:
+        """Get all entity categories for user's entities."""
+        return self.entity_category_repository.get_by_user(str(user.id))
+
+    def get_entity_categories(self, user, entity_type: str, entity_id: str) -> List[EntityCategory]:
+        """Get all categories for a specific entity."""
+        # Verify user owns the entity
+        if entity_type == 'form':
+            get_object_or_404(Form, id=entity_id, created_by=user)
+        elif entity_type == 'process':
+            get_object_or_404(Process, id=entity_id, created_by=user)
+        else:
+            raise ValidationError("Invalid entity type. Must be 'form' or 'process'.")
+
+        return self.entity_category_repository.get_by_entity(entity_type, entity_id)
+
+    def get_entity_category(self, user, entity_category_id: str) -> EntityCategory:
+        """Get a specific entity category."""
+        return get_object_or_404(EntityCategory, id=entity_category_id, category__created_by=user)
+
+    def update_entity_category(self, user, entity_category_id: str, entity_category_data: Dict[str, Any]) -> EntityCategory:
+        """Update an existing entity category."""
+        entity_category = get_object_or_404(EntityCategory, id=entity_category_id, category__created_by=user)
+        return self.entity_category_repository.update(entity_category, **entity_category_data)
+
+    def delete_entity_category(self, user, entity_category_id: str) -> bool:
+        """Delete an entity category."""
+        entity_category = get_object_or_404(EntityCategory, id=entity_category_id, category__created_by=user)
+        return self.entity_category_repository.delete(entity_category)
+
+
+# =============================================================================
+# RESPONSE SERVICE
+# =============================================================================
+
+class ResponseService:
+    """Service layer for response operations with business logic."""
+    
+    def __init__(self):
+        self.response_repository = ResponseRepository()
+        self.answer_repository = AnswerRepository()
+    
+    def submit_response(self, form_id: str, answers_data: List[Dict[str, Any]], 
+                       ip_address: str = '', user_agent: str = '', submitted_by=None) -> FormResponse:
+        """Submit a response to a form."""
+        try:
+            form = Form.objects.get(id=form_id, is_active=True)
+        except Form.DoesNotExist:
+            raise ValidationError("Form not found or inactive.")
+
+        if not answers_data:
+            raise ValidationError("At least one answer is required.")
+
+        # Get all required fields for the form
+        required_fields = Field.objects.filter(form=form, is_required=True)
+        answered_field_ids = {answer_data.get('field_id') for answer_data in answers_data if isinstance(answer_data, dict)}
+        
+        # Check if all required fields are answered
+        missing_required_fields = []
+        for field in required_fields:
+            if str(field.id) not in answered_field_ids:
+                missing_required_fields.append(field.label)
+        
+        if missing_required_fields:
+            raise ValidationError(f"Missing required fields: {', '.join(missing_required_fields)}")
+
+        with transaction.atomic():
+            # Create the response
+            response = self.response_repository.create(
+                form=form,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                submitted_by=submitted_by
+            )
+
+            # Create answers
+            for answer_data in answers_data:
+                if not isinstance(answer_data, dict) or 'field_id' not in answer_data or 'value' not in answer_data:
+                    raise ValidationError("Each answer must have 'field_id' and 'value'.")
+
+                try:
+                    field = Field.objects.get(id=answer_data['field_id'], form=form)
+                except Field.DoesNotExist:
+                    raise ValidationError("Field must belong to the same form as the response.")
+
+                self.answer_repository.create(
+                    response=response,
+                    field=field,
+                    value=answer_data['value']
+                )
+
+        return response
+
+    def get_user_responses(self, user) -> List[FormResponse]:
+        """Get all responses for user's forms."""
+        return self.response_repository.get_by_user(str(user.id))
+
+    def get_form_responses(self, user, form_id: str) -> List[FormResponse]:
+        """Get all responses for a specific form."""
+        form = get_object_or_404(Form, id=form_id, created_by=user)
+        return self.response_repository.get_by_form(str(form.id))
+
+    def get_response(self, user, response_id: str) -> FormResponse:
+        """Get a specific response."""
+        return get_object_or_404(FormResponse, id=response_id, form__created_by=user)
+
+    def update_response(self, user, response_id: str, response_data: Dict[str, Any]) -> FormResponse:
+        """Update an existing response."""
+        response = get_object_or_404(FormResponse, id=response_id, form__created_by=user)
+        return self.response_repository.update(response, **response_data)
+
+    def delete_response(self, user, response_id: str) -> bool:
+        """Delete a response."""
+        response = get_object_or_404(FormResponse, id=response_id, form__created_by=user)
+        return self.response_repository.delete(response)
+
+
+class AnswerService:
+    """Service layer for answer operations with business logic."""
+    
+    def __init__(self):
+        self.answer_repository = AnswerRepository()
+    
+    def create_answer(self, user, response_id: str, field_id: str, value: str) -> Answer:
+        """Create a new answer."""
+        response = get_object_or_404(FormResponse, id=response_id, form__created_by=user)
+        field = get_object_or_404(Field, id=field_id, form=response.form)
+
+        return self.answer_repository.create(
+            response=response,
+            field=field,
+            value=value
+        )
+
+    def get_user_answers(self, user) -> List[Answer]:
+        """Get all answers for user's responses."""
+        return self.answer_repository.get_by_user(str(user.id))
+
+    def get_response_answers(self, user, response_id: str) -> List[Answer]:
+        """Get all answers for a specific response."""
+        response = get_object_or_404(FormResponse, id=response_id, form__created_by=user)
+        return self.answer_repository.get_by_response(str(response.id))
+
+    def get_answer(self, user, answer_id: str) -> Answer:
+        """Get a specific answer."""
+        return get_object_or_404(Answer, id=answer_id, response__form__created_by=user)
+
+    def update_answer(self, user, answer_id: str, answer_data: Dict[str, Any]) -> Answer:
+        """Update an existing answer."""
+        answer = get_object_or_404(Answer, id=answer_id, response__form__created_by=user)
+        return self.answer_repository.update(answer, **answer_data)
+
+    def delete_answer(self, user, answer_id: str) -> bool:
+        """Delete an answer."""
+        answer = get_object_or_404(Answer, id=answer_id, response__form__created_by=user)
+        return self.answer_repository.delete(answer)
+
+    def get_field_answers(self, user, field_id: str) -> List[Answer]:
+        """Get all answers for a specific field."""
+        field = get_object_or_404(Field, id=field_id, form__created_by=user)
+        return self.answer_repository.get_by_field(str(field.id))
+
+    def get_field_statistics(self, user, field_id: str) -> Dict[str, Any]:
+        """Get statistics for a specific field."""
+        field = get_object_or_404(Field, id=field_id, form__created_by=user)
+        return self.answer_repository.get_field_statistics(str(field.id))

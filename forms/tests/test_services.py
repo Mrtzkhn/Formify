@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 
 from forms.models import Form, Field
 from forms.services.services import FieldService
@@ -112,7 +111,8 @@ class FieldServiceTestCase(TestCase):
         field2 = Field.objects.create(
             form=self.form,
             label='Field 2',
-            field_type='email',
+            field_type='select',
+            options={'choices': [{'value': 'option1', 'label': 'Option 1'}, {'value': 'option2', 'label': 'Option 2'}]},
             order_num=2
         )
         
@@ -141,7 +141,8 @@ class FieldServiceTestCase(TestCase):
         field2 = Field.objects.create(
             form=self.form,
             label='Field 2',
-            field_type='email',
+            field_type='select',
+            options={'choices': [{'value': 'option1', 'label': 'Option 1'}, {'value': 'option2', 'label': 'Option 2'}]},
             order_num=2
         )
         
@@ -327,47 +328,6 @@ class FieldServiceTestCase(TestCase):
         with self.assertRaises(ValidationError):
             self.field_service.validate_field_options('select', invalid_options)
     
-    def test_validate_field_options_rating(self):
-        """Test validation of rating field options."""
-        # Valid rating options
-        valid_options = {
-            'min_value': 1,
-            'max_value': 5,
-            'step': 1
-        }
-        
-        self.assertTrue(
-            self.field_service.validate_field_options('rating', valid_options)
-        )
-        
-        # Invalid rating options (min >= max)
-        invalid_options = {
-            'min_value': 5,
-            'max_value': 3
-        }
-        
-        with self.assertRaises(ValidationError):
-            self.field_service.validate_field_options('rating', invalid_options)
-    
-    def test_validate_field_options_file(self):
-        """Test validation of file field options."""
-        # Valid file options
-        valid_options = {
-            'allowed_types': ['image/jpeg', 'image/png'],
-            'max_size': 5242880  # 5MB
-        }
-        
-        self.assertTrue(
-            self.field_service.validate_field_options('file', valid_options)
-        )
-        
-        # Invalid file options (no allowed_types)
-        invalid_options = {
-            'max_size': 5242880
-        }
-        
-        with self.assertRaises(ValidationError):
-            self.field_service.validate_field_options('file', invalid_options)
     
     def test_get_field_types(self):
         """Test getting available field types."""
@@ -385,4 +345,4 @@ class FieldServiceTestCase(TestCase):
         field_type_values = [ft['value'] for ft in field_types]
         self.assertIn('text', field_type_values)
         self.assertIn('select', field_type_values)
-        self.assertIn('rating', field_type_values)
+        self.assertIn('checkbox', field_type_values)
