@@ -4,11 +4,16 @@ from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.db.models import Q
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+    OpenApiResponse,
+)
 
 from forms.models import (
     Field, Form, Process, ProcessStep, Category, EntityCategory, 
-    Response as FormResponse, Answer
+    Response as FormResponse, Answer, Report
 )
 from forms.serializers import (
     # Field serializers
@@ -26,12 +31,15 @@ from forms.serializers import (
     CategoryListSerializer, EntityCategorySerializer, EntityCategoryCreateSerializer,
     # Response serializers
     ResponseSerializer, ResponseCreateSerializer, ResponseListSerializer,
-    AnswerSerializer, AnswerCreateSerializer, AnswerListSerializer
+    AnswerSerializer, AnswerCreateSerializer, AnswerListSerializer,
+    # Report
+    ReportSerializer,
 )
 from forms.services.services import (
     FieldService, FormService, ProcessService, ProcessStepService,
     CategoryService, EntityCategoryService, ResponseService, AnswerService
 )
+from forms.services.reporting import ReportService
 
 
 # =============================================================================
@@ -1414,3 +1422,96 @@ class ProcessWorkflowViewSet(viewsets.GenericViewSet):
         """Check if all steps in a process are completed."""
         steps = self.process_step_service.get_process_steps_public(str(process.id))
         return all(self._is_step_completed(step) for step in steps)
+
+
+# =============================================================================
+# REPORT WORKFLOW VIEWSETS
+# =============================================================================
+ 
+RunResponseSerializer = inline_serializer(
+    name="ReportRunResponse",
+    fields={
+        "id": serializers.IntegerField(),
+        "delivered": serializers.BooleanField(),
+        "delivery_method": serializers.CharField(),
+        "payload": serializers.JSONField(),
+        "next_run": serializers.DateTimeField(required=False, allow_null=True),
+    },
+)
+
+PreviewResponseSerializer = inline_serializer(
+    name="ReportPreviewResponse",
+    fields={
+        "report_id": serializers.IntegerField(),
+        "payload": serializers.JSONField(),
+    },
+)
+
+@extend_schema_view(
+    list=extend_schema(tags=["Reports"], summary="List reports"),
+    retrieve=extend_schema(tags=["Reports"], summary="Retrieve a report"),
+    create=extend_schema(tags=["Reports"], summary="Create a report"),
+    update=extend_schema(  
+        tags=["Reports"],
+        summary="Replace a report",
+        request=ReportSerializer,
+        responses={200: OpenApiResponse(response=ReportSerializer)},
+    ),
+    partial_update=extend_schema( 
+        tags=["Reports"],
+        summary="Update a report",
+        request=ReportSerializer,
+        responses={200: OpenApiResponse(response=ReportSerializer)},
+    ),
+    destroy=extend_schema(tags=["Reports"], summary="Delete a report"),
+)
+class ReportViewSet(viewsets.ModelViewSet):
+    """
+    CRUD + actions for reports.
+    - POST /reports/<id>/run/ -> generate + deliver
+    - GET /reports/<id>/preview/ -> generate (no deliver)
+    """
+    serializer_class = ReportSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Report.objects.filter(created_by=self.request.user).select_related('form','created_by')
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @extend_schema(
+        tags=["Reports"],
+        summary="Run and deliver a report now",
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                response=RunResponseSerializer,
+                description="Report generated and (optionally) delivered.",
+            )
+        },
+    )
+    @action(detail=True, methods=['post'])
+    def run(self, request, pk=None):
+        report = self.get_object()
+        svc = ReportService()
+        result = svc.run_once(report)
+        return Response(result, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Reports"],
+        summary="Preview a report (no delivery)",
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                response=PreviewResponseSerializer,
+                description="Preview payload for the given report.",
+            )
+        },
+    )
+    @action(detail=True, methods=['get'])
+    def preview(self, request, pk=None):
+        report = self.get_object()
+        svc = ReportService()
+        data = svc.generate(report)
+        return Response({"report_id": report.id, "payload": data}, status=status.HTTP_200_OK)

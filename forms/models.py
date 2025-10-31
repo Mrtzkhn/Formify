@@ -264,9 +264,9 @@ class Report(models.Model):
     """Reporting configuration per ERD."""
     REPORT_TYPES = [
         ('summary', 'Summary'),
-        ('realtime', 'Realtime'),
-        ('api', 'API'),
+        ('detailed', 'Detailed'),
     ]
+    
     SCHEDULE_TYPES = [
         ('manual', 'Manual'),
         ('weekly', 'Weekly'),
@@ -275,16 +275,13 @@ class Report(models.Model):
 
     DELIVERY_METHODS = [
         ('email', 'Email'),
-        ('api', 'API'),
     ]
 
     id = models.AutoField(primary_key=True)
     form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name='reports')
     type = models.CharField(max_length=20, choices=REPORT_TYPES)
-    data_config = models.JSONField(default=dict, blank=True)
     schedule_type = models.CharField(max_length=20, choices=SCHEDULE_TYPES, default='manual')
     delivery_method = models.CharField(max_length=20, choices=DELIVERY_METHODS, default='email')
-    target_endpoint = models.CharField(max_length=512, blank=True, null=True)
     next_run = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -294,6 +291,13 @@ class Report(models.Model):
         verbose_name = 'report'
         verbose_name_plural = 'reports'
         ordering = ['-created_at']
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['form', 'type', 'created_by'],
+                name='uniq_report_per_user_form_type'
+            )
+        ]
 
     def __str__(self):
         return f"Report({self.type}) for {self.form.title}"

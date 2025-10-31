@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from .models import (
+    Report,
     Form, Field, Process, ProcessStep, Category, EntityCategory, 
     Response, Answer, FormView
 )
@@ -294,3 +295,11 @@ class FormViewAdmin(admin.ModelAdmin):
             'fields': ('form', 'ip_address', 'user_agent', 'viewed_at')
         }),
     )
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'form', 'type', 'schedule_type', 'delivery_method', 'next_run', 'is_active', 'created_by', 'created_at')
+    list_filter = ('type', 'schedule_type', 'delivery_method', 'is_active', 'created_at')
+    search_fields = ('form__title', 'created_by__email')
+    readonly_fields = ('created_at',)

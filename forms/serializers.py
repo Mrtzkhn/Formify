@@ -1,8 +1,7 @@
-
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
-from forms.models import Form, Field, Process, ProcessStep, Category, EntityCategory, Response, Answer
-
+from forms.models import Form, Field, Process, ProcessStep, Category, EntityCategory, Response, Answer, Report
+from forms.services.reporting import ReportService
 
 # Form Serializers
 class FormSerializer(serializers.ModelSerializer):
@@ -537,3 +536,48 @@ class AnswerListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
         fields = ['id', 'field_label', 'field_type', 'value', 'created_at']
+
+
+# --- Reporting serializers ---
+class ReportSerializer(serializers.ModelSerializer):
+    form_title = serializers.CharField(source='form.title', read_only=True)
+
+    class Meta:
+        model = Report
+        fields = [
+            'id', 'form', 'form_title', 'type',
+            'schedule_type', 'delivery_method',
+            'next_run', 'created_by', 'created_at', 'is_active'
+        ]
+        read_only_fields = ('id','created_at','created_by','next_run')
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['created_by'] = request.user
+        
+        if Report.objects.filter(
+            form=validated_data.get('form'),
+            type=validated_data.get('type'),
+            created_by=validated_data.get('created_by'),
+        ).exists():
+            raise serializers.ValidationError(
+                'You already have a report of this type for this form.'
+            )
+        
+        else:
+            report = Report.objects.create(**validated_data)
+        
+
+        # compute initial next_run if missing
+        try:
+            svc = ReportService()
+            if not report.next_run:
+                nxt = svc.compute_initial_next_run(report)
+                if nxt:
+                    report.next_run = nxt
+                    report.save(update_fields=['next_run'])
+        except Exception:
+            pass
+        return report
+

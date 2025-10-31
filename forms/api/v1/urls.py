@@ -3,13 +3,14 @@ from rest_framework.routers import DefaultRouter
 from forms.api.v1.views import (
     FieldViewSet, FormViewSet, PublicFormViewSet, PrivateFormViewSet,
     ProcessViewSet, ProcessStepViewSet, ProcessWorkflowViewSet,
-    CategoryViewSet, EntityCategoryViewSet, ResponseViewSet, AnswerViewSet
-)
+    CategoryViewSet, EntityCategoryViewSet, ResponseViewSet, AnswerViewSet, ReportViewSet
+    )
 
 app_name = 'forms_api_v1'
 
 # Create router for API v1
 router = DefaultRouter()
+router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'fields', FieldViewSet, basename='field')
 router.register(r'processes', ProcessViewSet, basename='process')
 router.register(r'process-steps', ProcessStepViewSet, basename='process-step')
