@@ -115,7 +115,7 @@ class Field(models.Model):
     field_type = models.CharField(max_length=20, choices=FIELD_TYPES, verbose_name='field type')
     is_required = models.BooleanField(default=False, verbose_name='required')
     options = models.JSONField(default=dict, blank=True, verbose_name='field options')
-    order_num = models.PositiveIntegerField(default=0, verbose_name='order number')
+    order_num = models.PositiveIntegerField(verbose_name='order number', null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -123,7 +123,13 @@ class Field(models.Model):
         verbose_name = 'field'
         verbose_name_plural = 'fields'
         ordering = ['order_num', 'created_at']
-        unique_together = ['form', 'order_num']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['form', 'order_num'],
+                name='uniq_order_per_form',
+                deferrable=models.Deferrable.DEFERRED,
+            ),
+        ]
     
     def __str__(self):
         return f"{self.label} ({self.get_field_type_display()})"
@@ -194,7 +200,7 @@ class ProcessStep(models.Model):
     form = models.ForeignKey(Form, on_delete=models.CASCADE, verbose_name='form')
     step_name = models.CharField(max_length=255, verbose_name='step name')
     step_description = models.TextField(blank=True, verbose_name='step description')
-    order_num = models.PositiveIntegerField(default=0, verbose_name='order number')
+    order_num = models.PositiveIntegerField(verbose_name='order number', null=True)
     is_mandatory = models.BooleanField(default=True, verbose_name='mandatory')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -203,7 +209,13 @@ class ProcessStep(models.Model):
         verbose_name = 'process step'
         verbose_name_plural = 'process steps'
         ordering = ['order_num', 'created_at']
-        unique_together = ['process', 'order_num']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['process', 'order_num'],
+                name='uniq_order_per_process',
+                deferrable=models.Deferrable.DEFERRED,
+            ),
+        ]
     
     def __str__(self):
         return f"{self.step_name} ({self.process.title})"

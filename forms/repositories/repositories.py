@@ -76,6 +76,7 @@ class FieldRepository(BaseRepository):
         max_order = Field.objects.filter(form_id=form_id).aggregate(
             max_order=Max('order_num')
         )['max_order']
+        print(max_order)
         return max_order or 0
     
     def reorder_fields_after_delete(self, form_id: str, deleted_order: int) -> None:

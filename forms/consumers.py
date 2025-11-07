@@ -4,7 +4,7 @@ from urllib.parse import parse_qs
 from uuid import UUID
 
 from forms.models import Form
-from forms.services.reporting import ReportService
+from forms.services.services import ReportService
 
 class FormReportConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):

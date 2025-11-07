@@ -37,212 +37,8 @@ from forms.serializers import (
 )
 from forms.services.services import (
     FieldService, FormService, ProcessService, ProcessStepService,
-    CategoryService, EntityCategoryService, ResponseService, AnswerService
+    CategoryService, EntityCategoryService, ResponseService, AnswerService, ReportService
 )
-from forms.services.reporting import ReportService
-
-
-# =============================================================================
-# FIELD VIEWSETS
-# =============================================================================
-
-@extend_schema_view(
-    list=extend_schema(
-        summary="List Fields",
-        description="Get all fields for forms owned by the authenticated user",
-        tags=["Form Fields"]
-    ),
-    create=extend_schema(
-        summary="Create Field",
-        description="Create a new field for a form",
-        tags=["Form Fields"]
-    ),
-    retrieve=extend_schema(
-        summary="Get Field",
-        description="Get a specific field by ID",
-        tags=["Form Fields"]
-    ),
-    update=extend_schema(
-        summary="Update Field",
-        description="Update an existing field",
-        tags=["Form Fields"]
-    ),
-    partial_update=extend_schema(
-        summary="Partial Update Field",
-        description="Partially update an existing field",
-        tags=["Form Fields"]
-    ),
-    destroy=extend_schema(
-        summary="Delete Field",
-        description="Delete a field",
-        tags=["Form Fields"]
-    ),
-    by_form=extend_schema(
-        summary="Get Fields by Form",
-        description="Get all fields for a specific form",
-        tags=["Form Fields"]
-    ),
-    reorder=extend_schema(
-        summary="Reorder Field",
-        description="Change the order of a field within its form",
-        tags=["Form Fields"]
-    ),
-    field_types=extend_schema(
-        summary="Get Field Types",
-        description="Get available field types (text, select, checkbox)",
-        tags=["Form Fields"]
-    ),
-    my_fields=extend_schema(
-        summary="Get My Fields",
-        description="Get all fields for forms owned by the authenticated user",
-        tags=["Form Fields"]
-    )
-)
-class FieldViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing fields with full CRUD operations and custom actions.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = Field.objects.all()
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.field_service = FieldService()
-    
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        if self.action == 'create':
-            return FieldCreateSerializer
-        elif self.action in ['update', 'partial_update']:
-            return FieldUpdateSerializer
-        elif self.action == 'list':
-            return FieldListSerializer
-        return FieldSerializer
-    
-    def get_queryset(self):
-        """Return fields belonging to the authenticated user's forms."""
-        return self.field_service.get_user_fields(self.request.user)
-    
-    def get_object(self):
-        """Get a single field object."""
-        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-        lookup_value = self.kwargs[lookup_url_kwarg]
-        
-        try:
-            field = self.field_service.get_field(self.request.user, lookup_value)
-            return field
-        except Field.DoesNotExist:
-            raise Http404("Field not found")
-    
-    def perform_create(self, serializer):
-        """Create a new field using the service layer."""
-        form_id = serializer.validated_data['form'].id
-        field_data = {
-            'label': serializer.validated_data['label'],
-            'field_type': serializer.validated_data['field_type'],
-            'is_required': serializer.validated_data['is_required'],
-            'options': serializer.validated_data.get('options', {}),
-            'order_num': serializer.validated_data.get('order_num', 0)
-        }
-        
-        field = self.field_service.create_field(
-            user=self.request.user,
-            form_id=str(form_id),
-            field_data=field_data
-        )
-        
-        serializer.instance = field
-    
-    def perform_update(self, serializer):
-        """Update an existing field using the service layer."""
-        field_id = serializer.instance.id
-        field_data = {
-            'label': serializer.validated_data.get('label', serializer.instance.label),
-            'field_type': serializer.validated_data.get('field_type', serializer.instance.field_type),
-            'is_required': serializer.validated_data.get('is_required', serializer.instance.is_required),
-            'options': serializer.validated_data.get('options', serializer.instance.options),
-            'order_num': serializer.validated_data.get('order_num', serializer.instance.order_num)
-        }
-        
-        field_data = {k: v for k, v in field_data.items() if v is not None}
-        
-        field = self.field_service.update_field(
-            user=self.request.user,
-            field_id=str(field_id),
-            field_data=field_data
-        )
-        
-        serializer.instance = field
-    
-    def perform_destroy(self, instance):
-        """Delete a field using the service layer."""
-        self.field_service.delete_field(
-            user=self.request.user,
-            field_id=str(instance.id)
-        )
-    
-    @action(detail=False, methods=['get'])
-    def by_form(self, request):
-        """Get all fields for a specific form."""
-        form_id = request.query_params.get('form_id')
-        if not form_id:
-            return Response(
-                {'error': 'form_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            fields = self.field_service.get_form_fields(
-                user=request.user,
-                form_id=form_id
-            )
-            serializer = FieldListSerializer(fields, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {'error': str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    
-    @action(detail=True, methods=['post'])
-    def reorder(self, request, pk=None):
-        """Reorder a field within its form."""
-        field = self.get_object()
-        
-        serializer = FieldReorderSerializer(
-            data=request.data,
-            context={'field': field}
-        )
-        
-        if serializer.is_valid():
-            try:
-                updated_field = self.field_service.reorder_field(
-                    user=request.user,
-                    field_id=str(field.id),
-                    new_order=serializer.validated_data['new_order']
-                )
-                
-                response_serializer = FieldSerializer(updated_field)
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-                
-            except ValidationError as e:
-                return Response(
-                    {'error': str(e)}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'])
-    def field_types(self, request):
-        """Get available field types."""
-        field_types = self.field_service.get_field_types()
-        return Response(field_types, status=status.HTTP_200_OK)
-    
-    @action(detail=False, methods=['get'])
-    def my_fields(self, request):
-        """Get all fields for the authenticated user's forms."""
-        return self.list(request)
 
 
 # =============================================================================
@@ -299,10 +95,6 @@ class FormViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     form_service = FormService()
 
-    def get_queryset(self):
-        """Filter forms by the authenticated user."""
-        return self.queryset.filter(created_by=self.request.user).order_by('-created_at')
-
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
@@ -316,14 +108,16 @@ class FormViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set the created_by field to the current user."""
         try:
-            self.form_service.create_form(self.request.user, serializer.validated_data)
+            instance = self.form_service.create_form(self.request.user, serializer.validated_data)
+            serializer.instance = instance
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the form."""
         try:
-            self.form_service.update_form(self.request.user, str(self.get_object().id), serializer.validated_data)
+            instance = self.form_service.update_form(self.request.user, str(self.get_object().id), serializer.validated_data)
+            serializer.instance = instance
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
@@ -456,6 +250,495 @@ class PrivateFormViewSet(viewsets.GenericViewSet):
 
 
 # =============================================================================
+# FIELD VIEWSETS
+# =============================================================================
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Fields",
+        description="Get all fields for forms owned by the authenticated user",
+        tags=["Form Fields"]
+    ),
+    create=extend_schema(
+        summary="Create Field",
+        description="Create a new field for a form",
+        tags=["Form Fields"]
+    ),
+    retrieve=extend_schema(
+        summary="Get Field",
+        description="Get a specific field by ID",
+        tags=["Form Fields"]
+    ),
+    update=extend_schema(
+        summary="Update Field",
+        description="Update an existing field",
+        tags=["Form Fields"]
+    ),
+    partial_update=extend_schema(
+        summary="Partial Update Field",
+        description="Partially update an existing field",
+        tags=["Form Fields"]
+    ),
+    destroy=extend_schema(
+        summary="Delete Field",
+        description="Delete a field",
+        tags=["Form Fields"]
+    ),
+    by_form=extend_schema(
+        summary="Get Fields by Form",
+        description="Get all fields for a specific form",
+        tags=["Form Fields"]
+    ),
+    reorder=extend_schema(
+        summary="Reorder Field",
+        description="Change the order of a field within its form",
+        tags=["Form Fields"]
+    ),
+    field_types=extend_schema(
+        summary="Get Field Types",
+        description="Get available field types (text, select, checkbox)",
+        tags=["Form Fields"]
+    ),
+    my_fields=extend_schema(
+        summary="Get My Fields",
+        description="Get all fields for forms owned by the authenticated user",
+        tags=["Form Fields"]
+    )
+)
+class FieldViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing fields with full CRUD operations and custom actions.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Field.objects.all()
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.field_service = FieldService()
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'create':
+            return FieldCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return FieldUpdateSerializer
+        elif self.action == 'list':
+            return FieldListSerializer
+        return FieldSerializer
+    
+    def get_object(self):
+        """Get a single field object."""
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        
+        try:
+            field = self.field_service.get_field(self.request.user, lookup_value)
+            return field
+        except Field.DoesNotExist:
+            raise Http404("Field not found")
+    
+    def perform_create(self, serializer):
+        """Create a new field using the service layer."""
+        form_id = serializer.validated_data['form'].id
+        field_data = {
+            'label': serializer.validated_data['label'],
+            'field_type': serializer.validated_data['field_type'],
+            'is_required': serializer.validated_data['is_required'],
+            'options': serializer.validated_data.get('options', {}),
+            'order_num': serializer.validated_data.get('order_num', 0)
+        }
+        
+        field = self.field_service.create_field(
+            user=self.request.user,
+            form_id=str(form_id),
+            field_data=field_data
+        )
+        
+        serializer.instance = field
+    
+    def perform_update(self, serializer):
+        """Update an existing field using the service layer."""
+        field_id = serializer.instance.id
+        field_data = {
+            'label': serializer.validated_data.get('label', serializer.instance.label),
+            'field_type': serializer.validated_data.get('field_type', serializer.instance.field_type),
+            'is_required': serializer.validated_data.get('is_required', serializer.instance.is_required),
+            'options': serializer.validated_data.get('options', serializer.instance.options),
+            'order_num': serializer.validated_data.get('order_num', serializer.instance.order_num)
+        }
+        
+        field_data = {k: v for k, v in field_data.items() if v is not None}
+        
+        field = self.field_service.update_field(
+            user=self.request.user,
+            field_id=str(field_id),
+            field_data=field_data
+        )
+        
+        serializer.instance = field
+    
+    def perform_destroy(self, instance):
+        """Delete a field using the service layer."""
+        self.field_service.delete_field(
+            user=self.request.user,
+            field_id=str(instance.id)
+        )
+    
+    @action(detail=False, methods=['get'])
+    def by_form(self, request):
+        """Get all fields for a specific form."""
+        form_id = request.query_params.get('form_id')
+        if not form_id:
+            return Response(
+                {'error': 'form_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            fields = self.field_service.get_form_fields(
+                user=request.user,
+                form_id=form_id
+            )
+            serializer = FieldListSerializer(fields, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    @action(detail=True, methods=['post'])
+    def reorder(self, request, pk=None):
+        """Reorder a field within its form."""
+        field = self.get_object()
+        
+        serializer = FieldReorderSerializer(
+            data=request.data,
+            context={'field': field}
+        )
+        
+        if serializer.is_valid():
+            try:
+                updated_field = self.field_service.reorder_field(
+                    user=request.user,
+                    field_id=str(field.id),
+                    new_order=serializer.validated_data['new_order']
+                )
+                
+                response_serializer = FieldSerializer(updated_field)
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
+                
+            except ValidationError as e:
+                return Response(
+                    {'error': str(e)}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
+    def field_types(self, request):
+        """Get available field types."""
+        field_types = self.field_service.get_field_types()
+        return Response(field_types, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def my_fields(self, request):
+        """Get all fields for the authenticated user's forms."""
+        fields = self.field_service.get_user_fields(self.request.user)
+        serializer = FieldListSerializer(fields, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# =============================================================================
+# RESPONSE VIEWSETS
+# =============================================================================
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Responses",
+        description="Get all responses for forms owned by the authenticated user",
+        tags=["Form Responses"]
+    ),
+    create=extend_schema(
+        summary="Create Response",
+        description="Create a new response for a form",
+        tags=["Form Responses"]
+    ),
+    retrieve=extend_schema(
+        summary="Get Response",
+        description="Get a specific response by ID",
+        tags=["Form Responses"]
+    ),
+    update=extend_schema(
+        summary="Update Response",
+        description="Update an existing response",
+        tags=["Form Responses"]
+    ),
+    partial_update=extend_schema(
+        summary="Partial Update Response",
+        description="Partially update an existing response",
+        tags=["Form Responses"]
+    ),
+    destroy=extend_schema(
+        summary="Delete Response",
+        description="Delete a response",
+        tags=["Form Responses"]
+    ),
+    by_form=extend_schema(
+        summary="Get Responses by Form",
+        description="Get all responses for a specific form",
+        tags=["Form Responses"]
+    ),
+    my_responses=extend_schema(
+        summary="List My Responses",
+        description="Get all responses for forms owned by the authenticated user",
+        tags=["Form Responses"]
+    )
+)
+class ResponseViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing responses.
+    """
+    queryset = FormResponse.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    response_service = ResponseService()
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'create':
+            return ResponseCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return ResponseSerializer
+        if self.action == 'list':
+            return ResponseListSerializer
+        return ResponseSerializer
+
+    def perform_create(self, serializer):
+        """Create a new response."""
+        try:
+            response = self.response_service.submit_response(
+                       form_id=str(serializer.validated_data['form'].id),
+                       answers_data=serializer.validated_data['answers'],
+                       ip_address=self.request.META.get('REMOTE_ADDR', ''),
+                       user_agent=self.request.META.get('HTTP_USER_AGENT', ''),
+                       submitted_by=self.request.user
+                    )
+            serializer.instance = response
+        except ValidationError as e:
+            raise serializers.ValidationError({'detail': str(e)})
+
+    def perform_update(self, serializer):
+        """Update the response."""
+        try:
+            response = self.response_service.update_response(
+                       self.request.user, 
+                       str(self.get_object().id), 
+                       serializer.validated_data
+                   )
+            serializer.instance = response
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e))
+
+    def perform_destroy(self, instance):
+        """Delete the response."""
+        self.response_service.delete_response(self.request.user, str(instance.id))
+
+    @action(detail=False, methods=['get'])
+    def by_form(self, request):
+        """Get all responses for a specific form."""
+        form_id = request.query_params.get('form_id')
+        if not form_id:
+            return Response(
+                {'detail': 'form_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            responses = self.response_service.get_form_responses(
+                user=request.user,
+                form_id=form_id
+            )
+            serializer = ResponseListSerializer(responses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def my_responses(self, request):
+        """Get all responses for forms owned by the authenticated user."""
+        my_responses = self.queryset.filter(form__created_by=self.request.user).order_by('-submitted_at')
+        serializer = ResponseListSerializer(my_responses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Answers",
+        description="Get all answers for responses owned by the authenticated user",
+        tags=["Form Answers"]
+    ),
+    create=extend_schema(
+        summary="Create Answer",
+        description="Create a new answer for a response",
+        tags=["Form Answers"]
+    ),
+    retrieve=extend_schema(
+        summary="Get Answer",
+        description="Get a specific answer by ID",
+        tags=["Form Answers"]
+    ),
+    update=extend_schema(
+        summary="Update Answer",
+        description="Update an existing answer",
+        tags=["Form Answers"]
+    ),
+    partial_update=extend_schema(
+        summary="Partial Update Answer",
+        description="Partially update an existing answer",
+        tags=["Form Answers"]
+    ),
+    destroy=extend_schema(
+        summary="Delete Answer",
+        description="Delete an answer",
+        tags=["Form Answers"]
+    ),
+    by_response=extend_schema(
+        summary="Get Answers by Response",
+        description="Get all answers for a specific response",
+        tags=["Form Answers"]
+    ),
+    my_answers=extend_schema(
+        summary="List My Answers",
+        description="Get all answers for responses owned by the authenticated user",
+        tags=["Form Answers"]
+    ),
+    by_field=extend_schema(
+        summary="Get Answers by Field",
+        description="Get all answers submitted for a specific field.",
+        tags=["Form Answers"]
+    ),
+    field_statistics=extend_schema(
+        summary="Get Field Statistics",
+        description="Get aggregated statistics for a specific field (counts, common values, timeline).",
+        tags=["Form Answers"]
+    )
+)
+class AnswerViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing answers.
+    """
+    queryset = Answer.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    answer_service = AnswerService() 
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'create':
+            return AnswerCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return AnswerSerializer
+        if self.action == 'list':
+            return AnswerListSerializer
+        return AnswerSerializer
+
+    def perform_create(self, serializer):
+        """Create a new answer."""
+        try:
+            answer = self.answer_service.create_answer(
+                     user=self.request.user,
+                     response_id=str(serializer.validated_data['response'].id),
+                     field_id=str(serializer.validated_data['field'].id),
+                     value=serializer.validated_data['value']
+                  )
+            serializer.instance = answer
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e))
+
+    def perform_update(self, serializer):
+        """Update the answer."""
+        try:
+            self.answer_service.update_answer(
+                self.request.user, 
+                str(self.get_object().id), 
+                serializer.validated_data
+            )
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e))
+
+    def perform_destroy(self, instance):
+        """Delete the answer."""
+        self.answer_service.delete_answer(self.request.user, str(instance.id))
+
+    @action(detail=False, methods=['get'])
+    def by_response(self, request):
+        """Get all answers for a specific response."""
+        response_id = request.query_params.get('response_id')
+        if not response_id:
+            return Response(
+                {'detail': 'response_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            answers = self.answer_service.get_response_answers(
+                user=request.user,
+                response_id=response_id
+            )
+            serializer = AnswerListSerializer(answers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def my_answers(self, request):
+        """Get all answers for responses owned by the authenticated user."""
+        answers = self.queryset.filter(response__form__created_by=self.request.user).order_by('-response__submitted_at')
+        serializer = AnswerListSerializer(answers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
+    @action(detail=False, methods=['get'])
+    def by_field(self, request):
+        """Get all answers for a specific field."""
+        field_id = request.query_params.get('field_id')
+        if not field_id:
+            return Response(
+                {'detail': 'field_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            answers = self.answer_service.get_field_answers(
+                user=request.user,
+                field_id=field_id
+            )
+            serializer = AnswerListSerializer(answers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def field_statistics(self, request):
+        """Get statistics for a specific field."""
+        field_id = request.query_params.get('field_id')
+        if not field_id:
+            return Response(
+                {'detail': 'field_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            statistics = self.answer_service.get_field_statistics(
+                user=request.user,
+                field_id=field_id
+            )
+            return Response(statistics, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# =============================================================================
 # PROCESS VIEWSETS
 # =============================================================================
 
@@ -514,10 +797,6 @@ class ProcessViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     process_service = ProcessService()
 
-    def get_queryset(self):
-        """Filter processes by the authenticated user."""
-        return self.queryset.filter(created_by=self.request.user).order_by('-created_at')
-
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
@@ -531,14 +810,16 @@ class ProcessViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new process."""
         try:
-            self.process_service.create_process(self.request.user, serializer.validated_data)
+            process = self.process_service.create_process(self.request.user, serializer.validated_data)
+            serializer.instance = process
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the process."""
         try:
-            self.process_service.update_process(self.request.user, str(self.get_object().id), serializer.validated_data)
+            process = self.process_service.update_process(self.request.user, str(self.get_object().id), serializer.validated_data)
+            serializer.instance = process
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
@@ -628,10 +909,6 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     process_step_service = ProcessStepService()
 
-    def get_queryset(self):
-        """Filter process steps by the authenticated user's processes."""
-        return self.queryset.filter(process__created_by=self.request.user).order_by('process', 'order_num')
-
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
@@ -645,14 +922,16 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new process step."""
         try:
-            self.process_step_service.create_process_step(self.request.user, serializer.validated_data)
+            process_step = self.process_step_service.create_process_step(self.request.user, serializer.validated_data)
+            serializer.instance = process_step
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the process step."""
         try:
-            self.process_step_service.update_process_step(self.request.user, str(self.get_object().id), serializer.validated_data)
+            process_step = self.process_step_service.update_process_step(self.request.user, str(self.get_object().id), serializer.validated_data)
+            serializer.instance = process_step
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
@@ -683,7 +962,9 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_steps(self, request):
         """Get all process steps for processes owned by the authenticated user."""
-        return self.list(request)
+        my_processes = self.queryset.filter(process__created_by=self.request.user).order_by('process', 'order_num')
+        serializer = ProcessStepListSerializer(my_processes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def reorder(self, request, pk=None):
@@ -771,10 +1052,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     category_service = CategoryService()
 
-    def get_queryset(self):
-        """Filter categories by the authenticated user."""
-        return self.queryset.filter(created_by=self.request.user).order_by('created_at')
-
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
@@ -788,14 +1065,16 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new category."""
         try:
-            self.category_service.create_category(self.request.user, serializer.validated_data)
+            category = self.category_service.create_category(self.request.user, serializer.validated_data)
+            serializer.instance = category
         except ValidationError as e:
             raise serializers.ValidationError({'detail': str(e)})
 
     def perform_update(self, serializer):
         """Update the category."""
         try:
-            self.category_service.update_category(self.request.user, str(self.get_object().id), serializer.validated_data)
+            category = self.category_service.update_category(self.request.user, str(self.get_object().id), serializer.validated_data)
+            serializer.instance = category
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
@@ -809,7 +1088,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_categories(self, request):
         """Get all categories created by the authenticated user."""
-        return self.list(request)
+        Categories = self.queryset.filter(created_by=self.request.user).order_by('created_at')
+        serializer = CategoryListSerializer(Categories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(
@@ -886,23 +1167,25 @@ class EntityCategoryViewSet(viewsets.ModelViewSet):
             entity_id = serializer.validated_data.get('entity_id')
             category_data = serializer.validated_data
             
-            self.entity_category_service.create_entity_category(
-                self.request.user, 
-                entity_type, 
-                entity_id, 
-                category_data
-            )
+            entity_category = self.entity_category_service.create_entity_category(
+                              self.request.user, 
+                              entity_type, 
+                              entity_id, 
+                              category_data
+                            )
+            serializer.instance = entity_category
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
     def perform_update(self, serializer):
         """Update the entity category."""
         try:
-            self.entity_category_service.update_entity_category(
-                self.request.user, 
-                str(self.get_object().id), 
-                serializer.validated_data
-            )
+            entity_category = self.entity_category_service.update_entity_category(
+                              self.request.user, 
+                              str(self.get_object().id), 
+                              serializer.validated_data
+                            )
+            serializer.instance = entity_category
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
 
@@ -937,294 +1220,6 @@ class EntityCategoryViewSet(viewsets.ModelViewSet):
     def my_entity_categories(self, request):
         """Get all entity categories for entities owned by the authenticated user."""
         return self.list(request)
-
-
-# =============================================================================
-# RESPONSE VIEWSETS
-# =============================================================================
-
-@extend_schema_view(
-    list=extend_schema(
-        summary="List Responses",
-        description="Get all responses for forms owned by the authenticated user",
-        tags=["Form Responses"]
-    ),
-    create=extend_schema(
-        summary="Create Response",
-        description="Create a new response for a form",
-        tags=["Form Responses"]
-    ),
-    retrieve=extend_schema(
-        summary="Get Response",
-        description="Get a specific response by ID",
-        tags=["Form Responses"]
-    ),
-    update=extend_schema(
-        summary="Update Response",
-        description="Update an existing response",
-        tags=["Form Responses"]
-    ),
-    partial_update=extend_schema(
-        summary="Partial Update Response",
-        description="Partially update an existing response",
-        tags=["Form Responses"]
-    ),
-    destroy=extend_schema(
-        summary="Delete Response",
-        description="Delete a response",
-        tags=["Form Responses"]
-    ),
-    by_form=extend_schema(
-        summary="Get Responses by Form",
-        description="Get all responses for a specific form",
-        tags=["Form Responses"]
-    ),
-    my_responses=extend_schema(
-        summary="List My Responses",
-        description="Get all responses for forms owned by the authenticated user",
-        tags=["Form Responses"]
-    )
-)
-class ResponseViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing responses.
-    """
-    queryset = FormResponse.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-    response_service = ResponseService()
-
-    def get_queryset(self):
-        """Filter responses by the authenticated user's forms."""
-        return self.queryset.filter(form__created_by=self.request.user).order_by('-submitted_at')
-
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        if self.action == 'create':
-            return ResponseCreateSerializer
-        if self.action in ['update', 'partial_update']:
-            return ResponseSerializer
-        if self.action == 'list':
-            return ResponseListSerializer
-        return ResponseSerializer
-
-    def perform_create(self, serializer):
-        """Create a new response."""
-        try:
-            self.response_service.submit_response(
-                form_id=str(serializer.validated_data['form'].id),
-                answers_data=serializer.validated_data['answers'],
-                ip_address=self.request.META.get('REMOTE_ADDR', ''),
-                user_agent=self.request.META.get('HTTP_USER_AGENT', ''),
-                submitted_by=self.request.user
-            )
-        except ValidationError as e:
-            raise serializers.ValidationError({'detail': str(e)})
-
-    def perform_update(self, serializer):
-        """Update the response."""
-        try:
-            self.response_service.update_response(
-                self.request.user, 
-                str(self.get_object().id), 
-                serializer.validated_data
-            )
-        except ValidationError as e:
-            raise serializers.ValidationError(str(e))
-
-    def perform_destroy(self, instance):
-        """Delete the response."""
-        self.response_service.delete_response(self.request.user, str(instance.id))
-
-    @action(detail=False, methods=['get'])
-    def by_form(self, request):
-        """Get all responses for a specific form."""
-        form_id = request.query_params.get('form_id')
-        if not form_id:
-            return Response(
-                {'detail': 'form_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            responses = self.response_service.get_form_responses(
-                user=request.user,
-                form_id=form_id
-            )
-            serializer = ResponseListSerializer(responses, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'])
-    def my_responses(self, request):
-        """Get all responses for forms owned by the authenticated user."""
-        return self.list(request)
-
-
-@extend_schema_view(
-    list=extend_schema(
-        summary="List Answers",
-        description="Get all answers for responses owned by the authenticated user",
-        tags=["Form Answers"]
-    ),
-    create=extend_schema(
-        summary="Create Answer",
-        description="Create a new answer for a response",
-        tags=["Form Answers"]
-    ),
-    retrieve=extend_schema(
-        summary="Get Answer",
-        description="Get a specific answer by ID",
-        tags=["Form Answers"]
-    ),
-    update=extend_schema(
-        summary="Update Answer",
-        description="Update an existing answer",
-        tags=["Form Answers"]
-    ),
-    partial_update=extend_schema(
-        summary="Partial Update Answer",
-        description="Partially update an existing answer",
-        tags=["Form Answers"]
-    ),
-    destroy=extend_schema(
-        summary="Delete Answer",
-        description="Delete an answer",
-        tags=["Form Answers"]
-    ),
-    by_response=extend_schema(
-        summary="Get Answers by Response",
-        description="Get all answers for a specific response",
-        tags=["Form Answers"]
-    ),
-    my_answers=extend_schema(
-        summary="List My Answers",
-        description="Get all answers for responses owned by the authenticated user",
-        tags=["Form Answers"]
-    ),
-    by_field=extend_schema(
-        summary="Get Answers by Field",
-        description="Get all answers submitted for a specific field.",
-        tags=["Form Answers"]
-    ),
-    field_statistics=extend_schema(
-        summary="Get Field Statistics",
-        description="Get aggregated statistics for a specific field (counts, common values, timeline).",
-        tags=["Form Answers"]
-    )
-)
-class AnswerViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing answers.
-    """
-    queryset = Answer.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-    answer_service = AnswerService()
-
-    def get_queryset(self):
-        """Filter answers by the authenticated user's responses."""
-        return self.queryset.filter(response__form__created_by=self.request.user).order_by('-response__submitted_at')
-
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        if self.action == 'create':
-            return AnswerCreateSerializer
-        if self.action in ['update', 'partial_update']:
-            return AnswerSerializer
-        if self.action == 'list':
-            return AnswerListSerializer
-        return AnswerSerializer
-
-    def perform_create(self, serializer):
-        """Create a new answer."""
-        try:
-            self.answer_service.create_answer(
-                user=self.request.user,
-                response_id=str(serializer.validated_data['response'].id),
-                field_id=str(serializer.validated_data['field'].id),
-                value=serializer.validated_data['value']
-            )
-        except ValidationError as e:
-            raise serializers.ValidationError(str(e))
-
-    def perform_update(self, serializer):
-        """Update the answer."""
-        try:
-            self.answer_service.update_answer(
-                self.request.user, 
-                str(self.get_object().id), 
-                serializer.validated_data
-            )
-        except ValidationError as e:
-            raise serializers.ValidationError(str(e))
-
-    def perform_destroy(self, instance):
-        """Delete the answer."""
-        self.answer_service.delete_answer(self.request.user, str(instance.id))
-
-    @action(detail=False, methods=['get'])
-    def by_response(self, request):
-        """Get all answers for a specific response."""
-        response_id = request.query_params.get('response_id')
-        if not response_id:
-            return Response(
-                {'detail': 'response_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            answers = self.answer_service.get_response_answers(
-                user=request.user,
-                response_id=response_id
-            )
-            serializer = AnswerListSerializer(answers, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'])
-    def my_answers(self, request):
-        """Get all answers for responses owned by the authenticated user."""
-        return self.list(request)
-
-    @action(detail=False, methods=['get'])
-    def by_field(self, request):
-        """Get all answers for a specific field."""
-        field_id = request.query_params.get('field_id')
-        if not field_id:
-            return Response(
-                {'detail': 'field_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            answers = self.answer_service.get_field_answers(
-                user=request.user,
-                field_id=field_id
-            )
-            serializer = AnswerListSerializer(answers, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'])
-    def field_statistics(self, request):
-        """Get statistics for a specific field."""
-        field_id = request.query_params.get('field_id')
-        if not field_id:
-            return Response(
-                {'detail': 'field_id parameter is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            statistics = self.answer_service.get_field_statistics(
-                user=request.user,
-                field_id=field_id
-            )
-            return Response(statistics, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # =============================================================================
@@ -1475,7 +1470,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Report.objects.filter(created_by=self.request.user).select_related('form','created_by')
+        return Report.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -1515,3 +1510,10 @@ class ReportViewSet(viewsets.ModelViewSet):
         svc = ReportService()
         data = svc.generate(report)
         return Response({"report_id": report.id, "payload": data}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def my_reports(self, request):
+        """Get all Reports for the authenticated user's forms."""
+        reports = Report.objects.filter(created_by=self.request.user).select_related('form','created_by')
+        serializer = ReportSerializer(reports, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

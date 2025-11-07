@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from forms.models import Form, Field, Process, ProcessStep, Category, EntityCategory, Response, Answer, Report
-from forms.services.reporting import ReportService
+from forms.services.services import ReportService
 
 # Form Serializers
 class FormSerializer(serializers.ModelSerializer):
@@ -30,14 +30,8 @@ class FormCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Form
-        fields = ['title', 'description', 'is_public', 'access_password', 'is_active']
-    
-    def validate_access_password(self, value):
-        """Validate access password for private forms."""
-        is_public = self.initial_data.get('is_public', True)
-        if not is_public and not value:
-            raise serializers.ValidationError("Private forms require an access password.")
-        return value
+        fields = ['id', 'title', 'description', 'is_public', 'access_password', 'is_active']
+        read_only_fields = ('id',)
 
 
 class FormUpdateSerializer(serializers.ModelSerializer):
@@ -45,14 +39,8 @@ class FormUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Form
-        fields = ['title', 'description', 'is_public', 'access_password', 'is_active']
-
-    def validate_access_password(self, value):
-        """Validate access password for private forms."""
-        is_public = self.initial_data.get('is_public', True)
-        if not is_public and not value:
-            raise serializers.ValidationError("Private forms require an access password.")
-        return value
+        fields = ['id', 'title', 'description', 'is_public', 'access_password', 'is_active']
+        read_only_fields = ('id',)
 
 
 class FormListSerializer(serializers.ModelSerializer):
@@ -115,7 +103,8 @@ class FieldCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Field
-        fields = ['form', 'label', 'field_type', 'is_required', 'options', 'order_num']
+        fields = ['id', 'form', 'label', 'field_type', 'is_required', 'options', 'order_num']
+        read_only_fields = ('id',)
     
     def validate_options(self, value):
         """Validate field options based on field type."""
@@ -147,7 +136,8 @@ class FieldUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Field
-        fields = ['label', 'field_type', 'is_required', 'options', 'order_num']
+        fields = ['id', 'label', 'field_type', 'is_required', 'options', 'order_num']
+        read_only_fields = ('id', 'order_num')
     
     def validate_options(self, value):
         """Validate field options based on field type."""
@@ -218,8 +208,9 @@ class ProcessCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Process
         fields = [
-            'title', 'description', 'process_type', 'is_public', 'access_password'
+            'id', 'title', 'description', 'process_type', 'is_public', 'access_password'
         ]
+        read_only_fields = ('id',)
     
     def validate(self, data):
         """Validate the entire data set."""
@@ -253,7 +244,7 @@ class ProcessUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Process
         fields = [
-            'title', 'description', 'process_type', 'is_public', 'access_password'
+            'id', 'title', 'description', 'process_type', 'is_public', 'access_password'
         ]
     
     def validate(self, data):
@@ -317,7 +308,7 @@ class ProcessStepCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessStep
         fields = [
-            'process', 'form', 'step_name', 'step_description', 'order_num', 'is_mandatory'
+            'id', 'process', 'form', 'step_name', 'step_description', 'order_num', 'is_mandatory'
         ]
     
     def validate_form(self, value):
@@ -334,7 +325,7 @@ class ProcessStepCreateSerializer(serializers.ModelSerializer):
 
     def validate_order_num(self, value):
         """Validate order number."""
-        if value < 1:
+        if value and value < 1:
             raise serializers.ValidationError("Order number must be at least 1.")
         return value
 
@@ -345,7 +336,7 @@ class ProcessStepUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessStep
         fields = [
-            'step_name', 'step_description', 'order_num', 'is_mandatory'
+            'id', 'step_name', 'step_description', 'order_num', 'is_mandatory'
         ]
     
     def validate_order_num(self, value):
@@ -388,14 +379,16 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating categories."""
     class Meta:
         model = Category
-        fields = ['name', 'description']
+        fields = ['id', 'name', 'description']
+        read_only_fields = ('id',)
 
 
 class CategoryUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating categories."""
     class Meta:
         model = Category
-        fields = ['name', 'description']
+        fields = ['id', 'name', 'description']
+        read_only_fields = ('id',)
 
 
 class CategoryListSerializer(serializers.ModelSerializer):
@@ -426,7 +419,7 @@ class EntityCategoryCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating entity categories."""
     class Meta:
         model = EntityCategory
-        fields = ['entity_type', 'entity_id', 'category']
+        fields = ['id', 'entity_type', 'entity_id', 'category']
     
     def validate_category(self, value):
         """Validate that the category belongs to the authenticated user."""
@@ -465,7 +458,8 @@ class ResponseCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Response
-        fields = ['form', 'answers']
+        fields = ['id', 'form', 'answers']
+        read_only_fields = ('id',)
     
     def validate_form(self, value):
         """Validate that the form is active and accessible."""
@@ -518,14 +512,8 @@ class AnswerCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating answers."""
     class Meta:
         model = Answer
-        fields = ['response', 'field', 'value']
-    
-    def validate_field(self, value):
-        """Validate that the field belongs to the response's form."""
-        response = self.initial_data.get('response')
-        if response and value.form != response.form:
-            raise serializers.ValidationError("Field must belong to the same form as the response.")
-        return value
+        fields = ['id', 'response', 'field', 'value']
+        read_only_fields = ('id',)
 
 
 class AnswerListSerializer(serializers.ModelSerializer):
@@ -580,4 +568,24 @@ class ReportSerializer(serializers.ModelSerializer):
         except Exception:
             pass
         return report
+    
+    def update(self, instance, validated_data):
+        schedule_fields = {'schedule_type'}  
+        schedule_changed = any(f in validated_data for f in schedule_fields)
+
+        # apply changes (mirrors ModelSerializer.update)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # recompute next_run if the schedule changed
+        if schedule_changed:
+            try:
+                svc = ReportService()
+                instance.next_run = svc.compute_initial_next_run(instance)
+            except Exception:
+                # keep old next_run if the service fails
+                pass
+
+        instance.save()
+        return instance
 

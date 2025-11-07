@@ -2,7 +2,7 @@ from django.utils import timezone
 from celery import shared_task
 
 from forms.models import Report
-from forms.services.reporting import ReportService
+from forms.services.services import ReportService
 
 @shared_task(name="forms.tasks.run_due_reports")
 def run_due_reports():
@@ -13,5 +13,6 @@ def run_due_reports():
     ran = 0
     for rep in due:
         svc.run_once(rep)
+        svc._bump_next_run(rep)
         ran += 1
     return {"ran": ran}
